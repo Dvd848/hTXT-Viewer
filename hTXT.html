@@ -57,13 +57,19 @@
         .infoBox {
             border: 1px solid gray;
             margin: 10px ;
-            padding: 10px;
+            padding: 25px;
             /*width: 60%;*/
-            background:    #E8E8E8  ;
+            background:    #E8E8E8;
+            
+            display: flex;                  /* establish flex container */
+            flex-direction: row;            /* default value; can be omitted */
+            flex-wrap: nowrap;              /* default value; can be omitted */
+            justify-content: space-between; /* switched from default (flex-start, see below) */
+            box-sizing: border-box;
         }
 
         .infoBox > div {
-            margin-top: 20px;
+            align-items: center;
         }
 
         .infoBox label {
@@ -74,7 +80,6 @@
         .infoBox input {
             background-color: #F0F0F0;
         }
-
         
     </style>
 </head>
@@ -84,88 +89,124 @@
     <h1>hTXT Viewer</h1>
     
     <div class="infoBox">
-      <div>
-         <form id="load_form">
-            <label>Load File:</label>
-            <input type="file" id="file" />
-            <button id="read-file">Load!</button>
-         </form>
-      </div>
-      
-      <div style="clear:both"></div>
+        <div>
+            <form id="load_form">
+                <label>Load File:</label>
+                <input type="file" id="file" />
+                <button id="read-file">Load!</button>
+            </form>
+        </div>
+        <div>
+            <button id="save-img" disabled="disabled">Save as Image</button>
+            <button id="save-txt" disabled="disabled">Save as Text</button>
+        </div>
    </div>
     
     
     <div id="wrapper"></div>
     
     <script>
-    const fileInput = document.getElementById('file');
-    const fReader = new FileReader();
-    
-    const translateChar = function(ascii_value) {
-        const art = {
-            0xA9: '⌐', 0xAA: '¬', 0xAE: '«', 0xAF: '»',
-            0xB0: '░', 0xB1: '▒', 0xB2: '▓', 0xB3: '│', 0xB4: '┤', 0xB5: '╡', 0xB6: '╢', 0xB7: '╖', 
-            0xB8: '╕', 0xB9: '╣', 0xBA: '║', 0xBB: '╗', 0xBC: '╝', 0xBD: '╜', 0xBE: '╛', 0xBF: '┐',
-            0xC0: '└', 0xC1: '┴', 0xC2: '┬', 0xC3: '├', 0xC4: '─', 0xC5: '┼', 0xC6: '╞', 0xC7: '╟', 
-            0xC8: '╚', 0xC9: '╔', 0xCA: '╩', 0xCB: '╦', 0xCC: '╠', 0xCD: '═', 0xCE: '╬', 0xCF: '╧',
-            0xD0: '╨', 0xD1: '╤', 0xD2: '╥', 0xD3: '╙', 0xD4: '╘', 0xD5: '╒', 0xD6: '╓', 0xD7: '╫',
-            0xD8: '╪', 0xD9: '┘', 0xDA: '┌', 0xDB: '█', 0xDC: '▄', 0xDD: '▌', 0xDE: '▐',
-            0xDF: '▀',
-            0xF0: '≡', 0xFA: '·', 0xFE: '■'
-        }
+    (function() {
+        const fileInput = document.getElementById('file');
+        const fReader = new FileReader();
+        const saveImgButton = document.getElementById("save-img");
+        const saveTxtButton = document.getElementById("save-txt");
         
-        const hebrew = {
-            0x80: 'א', 0x81: 'ב', 0x82: 'ג', 0x83: 'ד', 0x84: 'ה', 0x85: 'ו', 0x86: 'ז', 0x87: 'ח',
-            0x88: 'ט', 0x89: 'י', 0x8A: 'ך', 0x8B: 'כ', 0x8C: 'ל', 0x8D: 'ם', 0x8E: 'מ', 0x8F: 'ן',
-            0x90: 'נ', 0x91: 'ס', 0x92: 'ע', 0x93: 'ף', 0x94: 'פ', 0x95: 'ץ', 0x96: 'צ', 0x97: 'ק',
-            0x98: 'ר', 0x99: 'ש', 0x9A: 'ת',
-        }
+        saveImgButton.disabled = true;
+        saveTxtButton.disabled = true;
         
-        if (ascii_value in art) {
-            return art[ascii_value];
-        }
-        
-        if (ascii_value in hebrew) {
-            return hebrew[ascii_value] + String.fromCharCode(8206);
-        }
-        
-        return String.fromCharCode(ascii_value);
-    }
+        const translateChar = function(ascii_value) {
+            const art = {
+                0xA9: '⌐', 0xAA: '¬', 0xAE: '«', 0xAF: '»',
+                0xB0: '░', 0xB1: '▒', 0xB2: '▓', 0xB3: '│', 0xB4: '┤', 0xB5: '╡', 0xB6: '╢', 0xB7: '╖', 
+                0xB8: '╕', 0xB9: '╣', 0xBA: '║', 0xBB: '╗', 0xBC: '╝', 0xBD: '╜', 0xBE: '╛', 0xBF: '┐',
+                0xC0: '└', 0xC1: '┴', 0xC2: '┬', 0xC3: '├', 0xC4: '─', 0xC5: '┼', 0xC6: '╞', 0xC7: '╟', 
+                0xC8: '╚', 0xC9: '╔', 0xCA: '╩', 0xCB: '╦', 0xCC: '╠', 0xCD: '═', 0xCE: '╬', 0xCF: '╧',
+                0xD0: '╨', 0xD1: '╤', 0xD2: '╥', 0xD3: '╙', 0xD4: '╘', 0xD5: '╒', 0xD6: '╓', 0xD7: '╫',
+                0xD8: '╪', 0xD9: '┘', 0xDA: '┌', 0xDB: '█', 0xDC: '▄', 0xDD: '▌', 0xDE: '▐',
+                0xDF: '▀',
+                0xF0: '≡', 0xFA: '·', 0xFE: '■'
+            };
+            
+            const hebrew = {
+                0x80: 'א', 0x81: 'ב', 0x82: 'ג', 0x83: 'ד', 0x84: 'ה', 0x85: 'ו', 0x86: 'ז', 0x87: 'ח',
+                0x88: 'ט', 0x89: 'י', 0x8A: 'ך', 0x8B: 'כ', 0x8C: 'ל', 0x8D: 'ם', 0x8E: 'מ', 0x8F: 'ן',
+                0x90: 'נ', 0x91: 'ס', 0x92: 'ע', 0x93: 'ף', 0x94: 'פ', 0x95: 'ץ', 0x96: 'צ', 0x97: 'ק',
+                0x98: 'ר', 0x99: 'ש', 0x9A: 'ת',
+            };
+            
+            if (ascii_value in art) {
+                return art[ascii_value];
+            }
+            
+            if (ascii_value in hebrew) {
+                return hebrew[ascii_value] + String.fromCharCode(8206);
+            }
+            
+            return String.fromCharCode(ascii_value);
+        };
 
-    fReader.onload = function(e) {
-        let content = ""
-        const buffer = new Uint8Array(e.target.result);
+        fReader.onload = function(e) {
+            let content = "";
+            const buffer = new Uint8Array(e.target.result);
 
-        for (let x of buffer) {
-            content += translateChar(x);
+            for (let x of buffer) {
+                content += translateChar(x);
+            }
+
+            const newPre = document.createElement("pre");
+            newPre.setAttribute("id", "text_file");
+            newPre.appendChild(document.createTextNode(content));
+            const wrapper = document.getElementById("wrapper");
+            wrapper.innerHTML = '';
+            wrapper.appendChild(newPre);
+            wrapper.style.display = "block";
+            saveImgButton.disabled = false;
+            saveTxtButton.disabled = false;
+        };
+        
+        fReader.onerror = function(e) {
+            console.log('Error : ' + e.type);
+        };
+        
+        const read_file = function(e) {
+            
+            const file = fileInput.files[0];
+            if (file) {
+                fReader.readAsArrayBuffer(file);
+            }
+            return false;
+        };
+        
+        const get_file_name = function(extension) {
+            const file = fileInput.files[0];
+            let filename = "textfile";
+            if (file) {
+                filename = file.name;
+            }
+            return filename + extension;
         }
-
-        const newPre = document.createElement("pre");
-        newPre.appendChild(document.createTextNode(content));
-        const wrapper = document.getElementById("wrapper");
-        wrapper.innerHTML = '';
-        wrapper.appendChild(newPre);
-        wrapper.style.display = "block"; 
-    }
-    
-    fReader.onerror = function(e) {
-        console.log('Error : ' + e.type);
-    };
-    
-    const read_file = function(e) {
         
-        const file = fileInput.files[0];
+        const save_image = function(e) {
+            html2canvas(wrapper).then(function(canvas) {
+                canvas.toBlob(function(blob) {
+                    saveAs(blob, get_file_name(".png")); 
+                });
+            });
+        };
         
-        fReader.readAsArrayBuffer(file);
-        return false;
-    }
+        const save_text = function(e) {
+            const blob = new Blob([document.getElementById("text_file").textContent], {type: "text/plain;charset=utf-8"});
+            saveAs(blob, get_file_name(".txt"));
+        };
 
-    fileInput.onchange = read_file;
-    document.getElementById("read-file").onclick = read_file;
-    
+        fileInput.onchange = read_file;
+        document.getElementById("read-file").onclick = read_file;
+        saveImgButton.onclick = save_image;
+        saveTxtButton.onclick = save_text;
+    })();
     </script>
-    
-    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.0/FileSaver.min.js" integrity="sha512-csNcFYJniKjJxRWRV1R7fvnXrycHP6qDR21mgz1ZP55xY5d+aHLfo9/FcGDQLfn2IfngbAHd8LdfsagcCqgTcQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </body>
 </html>
