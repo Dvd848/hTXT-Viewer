@@ -1,0 +1,171 @@
+<!doctype html>
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<head>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>hTXT Viewer</title>
+    
+    <!--
+        Copyright 2022 - Dvd848
+        Permission is hereby granted, free of charge, to any person obtaining a copy of this software and 
+        associated documentation files (the "Software"), to deal in the Software without restriction, including 
+        without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell 
+        copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the 
+        following conditions:
+        The above copyright notice and this permission notice shall be included in all copies or substantial 
+        portions of the Software.
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT 
+        TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT 
+        SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN 
+        AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR 
+        THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+    -->
+    
+    <style>
+        @font-face {
+          font-family: "Classic Console Neue";
+          src: url("css/clacon2.woff2") format("woff2");
+        }
+        
+        pre {
+            font-family: "Classic Console Neue";
+            line-height: 16px;
+            padding: 1px;
+        }
+        
+        #wrapper {
+            margin: 10px auto;
+            width: 652px;
+            overflow: scroll;
+            border: 1px solid black;
+            background: white;
+            display: none;
+        }
+    
+        body {
+            font-family: Arial;
+            background: #F0F0F0;
+        }
+
+            
+        h1 {
+            text-align: center;
+        }
+
+        .infoBox {
+            border: 1px solid gray;
+            margin: 10px ;
+            padding: 10px;
+            /*width: 60%;*/
+            background:    #E8E8E8  ;
+        }
+
+        .infoBox > div {
+            margin-top: 20px;
+        }
+
+        .infoBox label {
+            width: 100px;
+            display: inline-block;
+        }
+        
+        .infoBox input {
+            background-color: #F0F0F0;
+        }
+
+        
+    </style>
+</head>
+
+<body>
+    
+    <h1>hTXT Viewer</h1>
+    
+    <div class="infoBox">
+      <div>
+         <form id="load_form">
+            <label>Load File:</label>
+            <input type="file" id="file" />
+            <button id="read-file">Load!</button>
+         </form>
+      </div>
+      
+      <div style="clear:both"></div>
+   </div>
+    
+    
+    <div id="wrapper"></div>
+    
+    <script>
+    const fileInput = document.getElementById('file');
+    const fReader = new FileReader();
+    
+    const translateChar = function(ascii_value) {
+        const art = {
+            0xA9: '⌐', 0xAA: '¬', 0xAE: '«', 0xAF: '»',
+            0xB0: '░', 0xB1: '▒', 0xB2: '▓', 0xB3: '│', 0xB4: '┤', 0xB5: '╡', 0xB6: '╢', 0xB7: '╖', 
+            0xB8: '╕', 0xB9: '╣', 0xBA: '║', 0xBB: '╗', 0xBC: '╝', 0xBD: '╜', 0xBE: '╛', 0xBF: '┐',
+            0xC0: '└', 0xC1: '┴', 0xC2: '┬', 0xC3: '├', 0xC4: '─', 0xC5: '┼', 0xC6: '╞', 0xC7: '╟', 
+            0xC8: '╚', 0xC9: '╔', 0xCA: '╩', 0xCB: '╦', 0xCC: '╠', 0xCD: '═', 0xCE: '╬', 0xCF: '╧',
+            0xD0: '╨', 0xD1: '╤', 0xD2: '╥', 0xD3: '╙', 0xD4: '╘', 0xD5: '╒', 0xD6: '╓', 0xD7: '╫',
+            0xD8: '╪', 0xD9: '┘', 0xDA: '┌', 0xDB: '█', 0xDC: '▄', 0xDD: '▌', 0xDE: '▐',
+            0xDF: '▀',
+            0xF0: '≡', 0xFA: '·', 0xFE: '■'
+        }
+        
+        const hebrew = {
+            0x80: 'א', 0x81: 'ב', 0x82: 'ג', 0x83: 'ד', 0x84: 'ה', 0x85: 'ו', 0x86: 'ז', 0x87: 'ח',
+            0x88: 'ט', 0x89: 'י', 0x8A: 'ך', 0x8B: 'כ', 0x8C: 'ל', 0x8D: 'ם', 0x8E: 'מ', 0x8F: 'ן',
+            0x90: 'נ', 0x91: 'ס', 0x92: 'ע', 0x93: 'ף', 0x94: 'פ', 0x95: 'ץ', 0x96: 'צ', 0x97: 'ק',
+            0x98: 'ר', 0x99: 'ש', 0x9A: 'ת',
+        }
+        
+        if (ascii_value in art) {
+            return art[ascii_value];
+        }
+        
+        if (ascii_value in hebrew) {
+            return hebrew[ascii_value] + String.fromCharCode(8206);
+        }
+        
+        return String.fromCharCode(ascii_value);
+    }
+
+    fReader.onload = function(e) {
+        let content = ""
+        const buffer = new Uint8Array(e.target.result);
+
+        for (let x of buffer) {
+            content += translateChar(x);
+        }
+
+        const newPre = document.createElement("pre");
+        newPre.appendChild(document.createTextNode(content));
+        const wrapper = document.getElementById("wrapper");
+        wrapper.innerHTML = '';
+        wrapper.appendChild(newPre);
+        wrapper.style.display = "block"; 
+    }
+    
+    fReader.onerror = function(e) {
+        console.log('Error : ' + e.type);
+    };
+    
+    const read_file = function(e) {
+        
+        const file = fileInput.files[0];
+        
+        fReader.readAsArrayBuffer(file);
+        return false;
+    }
+
+    fileInput.onchange = read_file;
+    document.getElementById("read-file").onclick = read_file;
+    
+    </script>
+    
+    
+</body>
+</html>
