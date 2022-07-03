@@ -32,15 +32,13 @@
         pre {
             font-family: "Classic Console Neue";
             line-height: 16px;
-            padding: 1px;
+            padding: 4px;
         }
         
         #wrapper {
             margin: 10px auto;
             width: 652px;
             overflow: scroll;
-            border: 1px solid black;
-            background: white;
             display: none;
         }
     
@@ -81,6 +79,18 @@
             background-color: #F0F0F0;
         }
         
+        .light_theme {
+            background: white;
+            color: black;
+            border: 1px solid black;
+        }
+        
+        .dark_theme {
+            background-color: #0C0C0C;
+            color: #CCCCCC;
+            border: none;
+        }
+        
     </style>
 </head>
 
@@ -99,11 +109,15 @@
         <div>
             <button id="save-img" disabled="disabled">Save as Image</button>
             <button id="save-txt" disabled="disabled">Save as Text</button>
+            <select id="theme">
+                <option value="dark" selected="selected">Theme: Dark</option>
+                <option value="light">Theme: Light</option>
+            </select>
         </div>
    </div>
     
     
-    <div id="wrapper"></div>
+    <div id="wrapper" class="light_theme"></div>
     
     <script>
     (function() {
@@ -111,6 +125,7 @@
         const fReader = new FileReader();
         const saveImgButton = document.getElementById("save-img");
         const saveTxtButton = document.getElementById("save-txt");
+        const themeSelect = document.getElementById("theme");
         
         saveImgButton.disabled = true;
         saveTxtButton.disabled = true;
@@ -188,7 +203,7 @@
         }
         
         const save_image = function(e) {
-            html2canvas(wrapper).then(function(canvas) {
+            html2canvas(wrapper, {}).then(function(canvas) {
                 canvas.toBlob(function(blob) {
                     saveAs(blob, get_file_name(".png")); 
                 });
@@ -199,11 +214,27 @@
             const blob = new Blob([document.getElementById("text_file").textContent], {type: "text/plain;charset=utf-8"});
             saveAs(blob, get_file_name(".txt"));
         };
+        
+        const theme_select = function(e) {
+            const wrapper = document.getElementById("wrapper");
+            switch (themeSelect.value)
+            {
+                case "light":
+                    wrapper.classList.remove("dark_theme");
+                    break;
+                case "dark":
+                default:
+                    wrapper.classList.add("dark_theme");
+                    break;
+            }
+        };
 
         fileInput.onchange = read_file;
         document.getElementById("read-file").onclick = read_file;
         saveImgButton.onclick = save_image;
         saveTxtButton.onclick = save_text;
+        themeSelect.onchange = theme_select;
+        theme_select();
     })();
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
