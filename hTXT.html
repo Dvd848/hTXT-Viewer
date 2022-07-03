@@ -38,7 +38,7 @@
         #wrapper {
             margin: 10px auto;
             width: 652px;
-            overflow: scroll;
+            overflow: auto;
             display: none;
         }
     
@@ -91,6 +91,19 @@
             border: none;
         }
         
+        .dropzone {
+            box-sizing: border-box;
+            display: none;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            left: 0;
+            top: 0;
+            z-index: 99999;
+
+            background: rgba(96, 167, 220,.8);
+            border: 11px dashed #60a7dc;
+        }
     </style>
 </head>
 
@@ -116,7 +129,7 @@
         </div>
    </div>
     
-    
+    <div id="dropzone" class="dropzone"></div>
     <div id="wrapper" class="light_theme"></div>
     
     <script>
@@ -228,6 +241,45 @@
                     break;
             }
         };
+        
+        const setupDropZone = function() {
+            const dropZone = document.getElementById('dropzone');
+            
+            function showDropZone() {
+                dropZone.style.display = "block";
+            }
+            function hideDropZone() {
+                dropZone.style.display = "none";
+            }
+
+            function allowDrag(e) {
+                e.dataTransfer.dropEffect = 'copy';
+                e.preventDefault();
+            }
+
+            function handleDrop(e) {
+                e.preventDefault();
+                hideDropZone();
+
+                const file = e.dataTransfer.files[0];
+                if (file) {
+                    fReader.readAsArrayBuffer(file);
+                }
+            }
+
+            window.addEventListener('dragenter', function(e) {
+                showDropZone();
+            });
+
+            dropZone.addEventListener('dragenter', allowDrag);
+            dropZone.addEventListener('dragover', allowDrag);
+
+            dropZone.addEventListener('dragleave', function(e) {
+                hideDropZone();
+            });
+
+            dropZone.addEventListener('drop', handleDrop);
+        };
 
         fileInput.onchange = read_file;
         document.getElementById("read-file").onclick = read_file;
@@ -235,6 +287,8 @@
         saveTxtButton.onclick = save_text;
         themeSelect.onchange = theme_select;
         theme_select();
+        setupDropZone();
+        
     })();
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
