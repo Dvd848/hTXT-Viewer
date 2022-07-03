@@ -198,10 +198,12 @@
         };
         
         const read_file = function(e) {
-            
-            const file = fileInput.files[0];
-            if (file) {
-                fReader.readAsArrayBuffer(file);
+            if (fileInput.files)
+            {
+                const file = fileInput.files[0];
+                if (file) {
+                    fReader.readAsArrayBuffer(file);
+                }
             }
             return false;
         };
@@ -258,12 +260,15 @@
             }
 
             function handleDrop(e) {
+                
                 e.preventDefault();
                 hideDropZone();
 
-                const file = e.dataTransfer.files[0];
-                if (file) {
-                    fReader.readAsArrayBuffer(file);
+                if (e.dataTransfer && e.dataTransfer.files) {
+                    const file = e.dataTransfer.files[0];
+                    if (file) {
+                        fReader.readAsArrayBuffer(file);
+                    }
                 }
             }
 
