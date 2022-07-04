@@ -35,7 +35,11 @@
             padding: 4px;
         }
         
-        #wrapper {
+        #main {
+            flex-grow: 1;
+        }
+        
+        #container {
             margin: 10px auto;
             width: 652px;
             overflow: auto;
@@ -45,6 +49,11 @@
         body {
             font-family: Arial;
             background: #F0F0F0;
+            min-height: 100vh;  
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
         }
 
             
@@ -104,35 +113,46 @@
             background: rgba(96, 167, 220,.8);
             border: 11px dashed #60a7dc;
         }
+        
+        footer {
+            padding: 3px;
+            font-size: 0.7em;
+            text-align: center;
+            margin: 10px 0 0 0;
+        }
     </style>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
 </head>
 
 <body>
-    
-    <h1>hTXT Viewer</h1>
-    
-    <div class="infoBox">
-        <div>
-            <form id="load_form">
-                <label>Load File:</label>
-                <input type="file" id="file" />
-                <button id="read-file">Load!</button>
-            </form>
-        </div>
-        <div>
-            <button id="save-img" disabled="disabled">Save as Image</button>
-            <button id="save-txt" disabled="disabled">Save as Text</button>
-            <select id="theme">
-                <option value="dark" selected="selected">Theme: Dark</option>
-                <option value="light">Theme: Light</option>
-            </select>
-        </div>
-   </div>
-    
-    <div id="dropzone" class="dropzone"></div>
-    <div id="wrapper" class="light_theme"></div>
-    
+    <div id="main">
+        <h1>hTXT Viewer</h1>
+        
+        <div class="infoBox">
+            <div>
+                <form id="load_form">
+                    <label>Load File:</label>
+                    <input type="file" id="file" />
+                    <button id="read-file">Load!</button>
+                </form>
+            </div>
+            <div>
+                <button id="save-img" disabled="disabled">Save as Image</button>
+                <button id="save-txt" disabled="disabled">Save as Text</button>
+                <select id="theme">
+                    <option value="dark" selected="selected">Theme: Dark</option>
+                    <option value="light">Theme: Light</option>
+                </select>
+            </div>
+       </div>
+        
+        <div id="dropzone" class="dropzone"></div>
+        <div id="container" class="light_theme"></div>
+
+
+        
+    </div>
+    <footer><a href="https://github.com/Dvd848/hTXT-Viewer">[View Source on GitHub]</a></footer>
     <script>
     (function() {
         const fileInput = document.getElementById('file');
@@ -186,10 +206,10 @@
             const newPre = document.createElement("pre");
             newPre.setAttribute("id", "text_file");
             newPre.appendChild(document.createTextNode(content));
-            const wrapper = document.getElementById("wrapper");
-            wrapper.innerHTML = '';
-            wrapper.appendChild(newPre);
-            wrapper.style.display = "block";
+            const container = document.getElementById("container");
+            container.innerHTML = '';
+            container.appendChild(newPre);
+            container.style.display = "block";
             saveImgButton.disabled = false;
             saveTxtButton.disabled = false;
         };
@@ -219,7 +239,7 @@
         }
         
         const save_image = function(e) {
-            html2canvas(wrapper, {}).then(function(canvas) {
+            html2canvas(container, {}).then(function(canvas) {
                 canvas.toBlob(function(blob) {
                     saveAs(blob, get_file_name(".png")); 
                 });
@@ -232,15 +252,15 @@
         };
         
         const theme_select = function(e) {
-            const wrapper = document.getElementById("wrapper");
+            const container = document.getElementById("container");
             switch (themeSelect.value)
             {
                 case "light":
-                    wrapper.classList.remove("dark_theme");
+                    container.classList.remove("dark_theme");
                     break;
                 case "dark":
                 default:
-                    wrapper.classList.add("dark_theme");
+                    container.classList.add("dark_theme");
                     break;
             }
         };
