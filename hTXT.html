@@ -29,10 +29,13 @@
           src: url("css/clacon2.woff2") format("woff2");
         }
         
-        pre {
+        #text_file {
             font-family: "Classic Console Neue";
             line-height: 16px;
             padding: 4px;
+            display: block;
+            unicode-bidi: embed;
+            white-space: pre;
         }
         
         #main {
@@ -122,6 +125,8 @@
         }
     </style>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.0/FileSaver.min.js" integrity="sha512-csNcFYJniKjJxRWRV1R7fvnXrycHP6qDR21mgz1ZP55xY5d+aHLfo9/FcGDQLfn2IfngbAHd8LdfsagcCqgTcQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 
 <body>
@@ -203,6 +208,10 @@
             
             return String.fromCharCode(ascii_value);
         };
+        
+        const strip_ansi = function(string) {
+            return string.replace(/[\u001b\u009b←][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, "");
+        }
 
         fReader.onload = function(e) {
             let content = "";
@@ -212,9 +221,9 @@
                 content += translateChar(x);
             }
 
-            const newPre = document.createElement("pre");
+            const newPre = document.createElement("div");
             newPre.setAttribute("id", "text_file");
-            newPre.appendChild(document.createTextNode(content));
+            newPre.appendChild(document.createTextNode(strip_ansi(content)));
             const container = document.getElementById("container");
             container.innerHTML = '';
             container.appendChild(newPre);
@@ -326,7 +335,5 @@
         
     })();
     </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.0/FileSaver.min.js" integrity="sha512-csNcFYJniKjJxRWRV1R7fvnXrycHP6qDR21mgz1ZP55xY5d+aHLfo9/FcGDQLfn2IfngbAHd8LdfsagcCqgTcQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </body>
 </html>
