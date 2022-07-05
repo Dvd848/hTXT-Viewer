@@ -148,142 +148,255 @@
                     <option value="dark" selected="selected">Theme: Dark</option>
                     <option value="light">Theme: Light</option>
                 </select>
+                <select id="ansi">
+                    <option value="strip" selected="selected">Strip ANSI Codes</option>
+                    <option value="translate">Parse ANSI Codes</option>
+                </select>
             </div>
        </div>
         
         <div id="dropzone" class="dropzone"></div>
-        <div id="container" class="light_theme"></div>
+        <div id="container"></div>
 
 
         
     </div>
     <footer><a href="https://github.com/Dvd848/hTXT-Viewer">[View Source on GitHub]</a></footer>
     <script>
-    (function() {
-        const fileInput = document.getElementById('file');
-        const fReader = new FileReader();
-        const saveImgButton = document.getElementById("save-img");
-        const saveTxtButton = document.getElementById("save-txt");
-        const themeSelect = document.getElementById("theme");
-        
-        saveImgButton.disabled = true;
-        saveTxtButton.disabled = true;
-        
-        const translateChar = function(ascii_value) {
-            const art = {
-                0x01: '☺', 0x02: '☻', 0x03: '♥', 0x04: '♦', 0x05: '♣', 0x06: '♠', 0x07: '•', 
-                0x08: '◘', 0x09: '○', 0x0B: '♂', 0x0C: '♀', 0x0E: '♫', 0x0F: '☼', 
-                0x10: '►', 0x11: '◄', 0x12: '↕', 0x13: '‼', 0x14: '¶', 0x15: '§', 0x16: '▬', 0x17: '↨', 
-                0x18: '↑', 0x19: '↓', 0x1A: '→', 0x1B: '←', 0x1C: '∟', 0x1D: '↔', 0x1E: '▲', 0x1F: '▼', 
-                
-                0x9B: '¢', 0x9C: '£', 0x9D: '¥', 0x9E: '₧', 0x9F: 'ƒ', 
-                0xA0: 'á', 0xA1: 'í', 0xA2: 'ó', 0xA3: 'ú', 0xA4: 'ñ', 0xA5: 'Ñ', 0xA6: 'ª', 0xA7: 'º', 
-                0xA8: '¿', 0xA9: '⌐', 0xAA: '¬', 0xAB: '½', 0xAC: '¼', 0xAD: '¡', 0xAE: '«', 0xAF: '»',
-                0xB0: '░', 0xB1: '▒', 0xB2: '▓', 0xB3: '│', 0xB4: '┤', 0xB5: '╡', 0xB6: '╢', 0xB7: '╖', 
-                0xB8: '╕', 0xB9: '╣', 0xBA: '║', 0xBB: '╗', 0xBC: '╝', 0xBD: '╜', 0xBE: '╛', 0xBF: '┐',
-                0xC0: '└', 0xC1: '┴', 0xC2: '┬', 0xC3: '├', 0xC4: '─', 0xC5: '┼', 0xC6: '╞', 0xC7: '╟', 
-                0xC8: '╚', 0xC9: '╔', 0xCA: '╩', 0xCB: '╦', 0xCC: '╠', 0xCD: '═', 0xCE: '╬', 0xCF: '╧',
-                0xD0: '╨', 0xD1: '╤', 0xD2: '╥', 0xD3: '╙', 0xD4: '╘', 0xD5: '╒', 0xD6: '╓', 0xD7: '╫',
-                0xD8: '╪', 0xD9: '┘', 0xDA: '┌', 0xDB: '█', 0xDC: '▄', 0xDD: '▌', 0xDE: '▐', 0xDF: '▀',
-                0xE0: 'α', 0xE1: 'ß', 0xE2: 'Γ', 0xE3: 'π', 0xE4: 'Σ', 0xE5: 'σ', 0xE6: 'µ', 0xE7: 'τ', 
-                0xE8: 'Φ', 0xE9: 'Θ', 0xEA: 'Ω', 0xEB: 'δ', 0xEC: '∞', 0xED: 'φ', 0xEE: 'ε', 0xEF: '∩',
-                0xF0: '≡', 0xF1: '±', 0xF2: '≥', 0xF3: '≤', 0xF4: '⌠', 0xF5: '⌡', 0xF6: '÷', 0xF7: '≈', 
-                0xF8: '°', 0xF9: '∙', 0xFA: '·', 0xFB: '√', 0xFC: 'ⁿ', 0xFD: '²', 0xFE: '■', 0xFF: String.fromCharCode(160)
+    'use strict';
+    
+    class CodePageTranslator {
+        constructor() {
+            this.translation_map = {
+                "art": {
+                    0x01: '☺', 0x02: '☻', 0x03: '♥', 0x04: '♦', 0x05: '♣', 0x06: '♠', 0x07: '•', 
+                    0x08: '◘', 0x09: '○', 0x0B: '♂', 0x0C: '♀', 0x0E: '♫', 0x0F: '☼', 
+                    0x10: '►', 0x11: '◄', 0x12: '↕', 0x13: '‼', 0x14: '¶', 0x15: '§', 0x16: '▬', 0x17: '↨', 
+                    0x18: '↑', 0x19: '↓', 0x1A: '→', 0x1B: '←', 0x1C: '∟', 0x1D: '↔', 0x1E: '▲', 0x1F: '▼', 
+                    
+                    0x9B: '¢', 0x9C: '£', 0x9D: '¥', 0x9E: '₧', 0x9F: 'ƒ', 
+                    0xA0: 'á', 0xA1: 'í', 0xA2: 'ó', 0xA3: 'ú', 0xA4: 'ñ', 0xA5: 'Ñ', 0xA6: 'ª', 0xA7: 'º', 
+                    0xA8: '¿', 0xA9: '⌐', 0xAA: '¬', 0xAB: '½', 0xAC: '¼', 0xAD: '¡', 0xAE: '«', 0xAF: '»',
+                    0xB0: '░', 0xB1: '▒', 0xB2: '▓', 0xB3: '│', 0xB4: '┤', 0xB5: '╡', 0xB6: '╢', 0xB7: '╖', 
+                    0xB8: '╕', 0xB9: '╣', 0xBA: '║', 0xBB: '╗', 0xBC: '╝', 0xBD: '╜', 0xBE: '╛', 0xBF: '┐',
+                    0xC0: '└', 0xC1: '┴', 0xC2: '┬', 0xC3: '├', 0xC4: '─', 0xC5: '┼', 0xC6: '╞', 0xC7: '╟', 
+                    0xC8: '╚', 0xC9: '╔', 0xCA: '╩', 0xCB: '╦', 0xCC: '╠', 0xCD: '═', 0xCE: '╬', 0xCF: '╧',
+                    0xD0: '╨', 0xD1: '╤', 0xD2: '╥', 0xD3: '╙', 0xD4: '╘', 0xD5: '╒', 0xD6: '╓', 0xD7: '╫',
+                    0xD8: '╪', 0xD9: '┘', 0xDA: '┌', 0xDB: '█', 0xDC: '▄', 0xDD: '▌', 0xDE: '▐', 0xDF: '▀',
+                    0xE0: 'α', 0xE1: 'ß', 0xE2: 'Γ', 0xE3: 'π', 0xE4: 'Σ', 0xE5: 'σ', 0xE6: 'µ', 0xE7: 'τ', 
+                    0xE8: 'Φ', 0xE9: 'Θ', 0xEA: 'Ω', 0xEB: 'δ', 0xEC: '∞', 0xED: 'φ', 0xEE: 'ε', 0xEF: '∩',
+                    0xF0: '≡', 0xF1: '±', 0xF2: '≥', 0xF3: '≤', 0xF4: '⌠', 0xF5: '⌡', 0xF6: '÷', 0xF7: '≈', 
+                    0xF8: '°', 0xF9: '∙', 0xFA: '·', 0xFB: '√', 0xFC: 'ⁿ', 0xFD: '²', 0xFE: '■', 0xFF: String.fromCharCode(160)
+                },
+            
+                "hebrew": {
+                    0x80: 'א', 0x81: 'ב', 0x82: 'ג', 0x83: 'ד', 0x84: 'ה', 0x85: 'ו', 0x86: 'ז', 0x87: 'ח',
+                    0x88: 'ט', 0x89: 'י', 0x8A: 'ך', 0x8B: 'כ', 0x8C: 'ל', 0x8D: 'ם', 0x8E: 'מ', 0x8F: 'ן',
+                    0x90: 'נ', 0x91: 'ס', 0x92: 'ע', 0x93: 'ף', 0x94: 'פ', 0x95: 'ץ', 0x96: 'צ', 0x97: 'ק',
+                    0x98: 'ר', 0x99: 'ש', 0x9A: 'ת',
+                }
             };
             
-            const hebrew = {
-                0x80: 'א', 0x81: 'ב', 0x82: 'ג', 0x83: 'ד', 0x84: 'ה', 0x85: 'ו', 0x86: 'ז', 0x87: 'ח',
-                0x88: 'ט', 0x89: 'י', 0x8A: 'ך', 0x8B: 'כ', 0x8C: 'ל', 0x8D: 'ם', 0x8E: 'מ', 0x8F: 'ן',
-                0x90: 'נ', 0x91: 'ס', 0x92: 'ע', 0x93: 'ף', 0x94: 'פ', 0x95: 'ץ', 0x96: 'צ', 0x97: 'ק',
-                0x98: 'ר', 0x99: 'ש', 0x9A: 'ת',
-            };
-            
-            if (ascii_value in art) {
-                return art[ascii_value];
+            this.left_right_mark = String.fromCharCode(8206);
+        }
+        
+        translate_char(ascii_value) {
+            if (ascii_value in this.translation_map.art) {
+                return this.translation_map.art[ascii_value];
             }
             
-            if (ascii_value in hebrew) {
-                return hebrew[ascii_value] + String.fromCharCode(8206);
+            if (ascii_value in this.translation_map.hebrew) {
+                return this.translation_map.hebrew[ascii_value] + this.left_right_mark;
             }
             
             return String.fromCharCode(ascii_value);
-        };
-        
-        const strip_ansi = function(string) {
-            return string.replace(/[\u001b\u009b←][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, "");
         }
-
-        fReader.onload = function(e) {
+        
+        translate(buffer) {
             let content = "";
-            const buffer = new Uint8Array(e.target.result);
-
             for (let x of buffer) {
-                content += translateChar(x);
+                content += this.translate_char(x);
+            }
+            
+            return content;
+        }
+    };
+    
+    class AnsiParser {
+        constructor() {
+            this.ANSI_ESCAPE_PATTERN = /[\u001b\u009b←][[()#;?]*((?:[0-9]{1,4}(?:;[0-9]{0,4})*)?)([0-9A-ORZcf-nqry=><])/g;
+            this.COLORS = {
+                0: 'black',
+                1: 'red',
+                2: 'green',
+                3: 'yellow',
+                4: 'blue',
+                5: 'purple',
+                6: 'cyan',
+                7: 'white'
+            };
+            
+            this.NUM_COLORS = Object.keys(this.COLORS).length;
+            this.FOREGROUND_BASE = 30;
+            this.BACKGROUND_BASE = 40;
+            this.RESET           = 0;
+            this.BOLD            = 1;
+            this.ITALIC          = 3;
+        }
+    
+    
+        parse (str, action) {
+            let span_counter = 0;
+            let that = this;
+            
+            const ansi_to_span = function (match, args, func) { 
+                
+                if (!func) {
+                    return "";
+                }
+                
+                if (!args) {
+                    return "";
+                }
+                
+                let res = "";
+                
+                if (func == "m") {
+                    args = args.split(";");
+                    
+                    for (let arg of args)
+                    {
+                        const parsed = parseInt(arg);
+                        if (isNaN(parsed)) { 
+                            return ""; 
+                        }
+                        
+
+                        if ( (parsed == that.RESET) && (span_counter > 0) ) {
+                            for (let i = 0; i < span_counter; i++)
+                            {
+                                res += "</span>";
+                            }
+                            span_counter = 0;
+                        }
+                        else if ((parsed >= that.BACKGROUND_BASE) && (parsed < that.BACKGROUND_BASE + that.NUM_COLORS))
+                        {
+                            res += "<span style='background-color: " + that.COLORS[parsed - that.BACKGROUND_BASE] + "'>";
+                            span_counter += 1;
+                        }
+                        else if ((parsed >= that.FOREGROUND_BASE) && (parsed < that.FOREGROUND_BASE + that.NUM_COLORS))
+                        {
+                            res += "<span style='color: " + that.COLORS[parsed - that.FOREGROUND_BASE] + "'>";
+                            span_counter += 1;
+                        }
+                        else if (parsed == that.BOLD) {
+                            res += "<span style='font-weight: bold'>";
+                            span_counter += 1;
+                        }
+                        else if (parsed == that.ITALIC) {
+                            res += "<span style='font-style: italic'>";
+                            span_counter += 1;
+                        }
+                    }
+                    
+                }
+                else if (func == "C") {
+                    const parsed = parseInt(args, 10);
+                    if (isNaN(parsed)) { 
+                        return ""; 
+                    }
+                    res += " ".repeat(parsed)
+                }
+                else {
+                    console.log(`Unsupported ANSI Escape Code function: ${func}`);
+                }
+
+                return res;
+            };
+            
+            let replacement;
+            
+            switch (action)
+            {
+                case "strip":
+                default:
+                    replacement = "";
+                    break;
+                case "translate":
+                    replacement = ansi_to_span;
+                    break;
             }
 
-            const newPre = document.createElement("div");
-            newPre.setAttribute("id", "text_file");
-            newPre.appendChild(document.createTextNode(strip_ansi(content)));
-            const container = document.getElementById("container");
-            container.innerHTML = '';
-            container.appendChild(newPre);
-            container.style.display = "block";
-            saveImgButton.disabled = false;
-            saveTxtButton.disabled = false;
-        };
+            str = str.replace(that.ANSI_ESCAPE_PATTERN, replacement);
+            
+            while (span_counter > 0) {
+                str += "</span>";
+                span_counter--;
+            }
+
+            return str;
+        }
+    }
+
+    
+    class hTXT {
+        constructor() {
+            this.container = document.getElementById("container");
+            
+            this.codePageTranslator = new CodePageTranslator();
+            this.ansiParser = new AnsiParser();
+            
+            this.setupFileReader();
+            this.setupDropZone();
+            this.setupTheme();
+            this.setupAnsi();
+            this.setupSave();
+            
+            this.content = null;
+            this.fileName = null;
+        }
+       
         
-        fReader.onerror = function(e) {
-            console.log('Error : ' + e.type);
-        };
-        
-        const read_file = function(e) {
-            if (fileInput.files)
-            {
-                const file = fileInput.files[0];
-                if (file) {
-                    fReader.readAsArrayBuffer(file);
+        setupFileReader() {
+            const that = this;
+            this.fileInput = document.getElementById('file');
+            this.fReader = new FileReader();
+            
+            this.fReader.onload = function(e) {
+                
+                const buffer = new Uint8Array(e.target.result);
+
+                that.content = that.codePageTranslator.translate(buffer);
+                that.parseContent();
+            };
+            
+            this.fReader.onerror = function(e) {
+                console.log('Error : ' + e.type);
+            };
+            
+            this.readFile = function(files) {
+                if (files && files.length > 0) {
+                    const file = files[0];
+                    if (file) {
+                        that.fileName = file.name;
+                        that.fReader.readAsArrayBuffer(file);
+                    }
                 }
             }
-            return false;
+            
+            const onReadFile = function(e) {
+                if (that.fileInput) {
+                    that.readFile(that.fileInput.files);
+                }
+                return false;
+            };
+            
+            this.fileInput.onchange = onReadFile;
+            document.getElementById("read-file").onclick = onReadFile;
         };
         
-        const get_file_name = function(extension) {
-            const file = fileInput.files[0];
-            let filename = "textfile";
-            if (file) {
-                filename = file.name;
-            }
-            return filename + extension;
-        }
-        
-        const save_image = function(e) {
-            html2canvas(container, {}).then(function(canvas) {
-                canvas.toBlob(function(blob) {
-                    saveAs(blob, get_file_name(".png")); 
-                });
-            });
-        };
-        
-        const save_text = function(e) {
-            const blob = new Blob([document.getElementById("text_file").textContent], {type: "text/plain;charset=utf-8"});
-            saveAs(blob, get_file_name(".txt"));
-        };
-        
-        const theme_select = function(e) {
-            const container = document.getElementById("container");
-            switch (themeSelect.value)
-            {
-                case "light":
-                    container.classList.remove("dark_theme");
-                    break;
-                case "dark":
-                default:
-                    container.classList.add("dark_theme");
-                    break;
-            }
-        };
-        
-        const setupDropZone = function() {
+        setupDropZone() {
+            const that = this;
             const dropZone = document.getElementById('dropzone');
             
             function showDropZone() {
@@ -299,15 +412,11 @@
             }
 
             function handleDrop(e) {
-                
                 e.preventDefault();
                 hideDropZone();
 
-                if (e.dataTransfer && e.dataTransfer.files) {
-                    const file = e.dataTransfer.files[0];
-                    if (file) {
-                        fReader.readAsArrayBuffer(file);
-                    }
+                if (e.dataTransfer) {
+                    that.readFile(e.dataTransfer.files);
                 }
             }
 
@@ -324,15 +433,73 @@
 
             dropZone.addEventListener('drop', handleDrop);
         };
-
-        fileInput.onchange = read_file;
-        document.getElementById("read-file").onclick = read_file;
-        saveImgButton.onclick = save_image;
-        saveTxtButton.onclick = save_text;
-        themeSelect.onchange = theme_select;
-        theme_select();
-        setupDropZone();
         
+        setupTheme() {
+            const that = this;
+            const themeSelect = document.getElementById("theme");
+            const onThemeSelect = function(e) {
+                switch (themeSelect.value)
+                {
+                    case "light":
+                        that.container.classList.remove("dark_theme");
+                        break;
+                    case "dark":
+                    default:
+                        that.container.classList.add("dark_theme");
+                        break;
+                }
+            };
+            
+            themeSelect.onchange = onThemeSelect;
+            onThemeSelect();
+        };
+        
+        setupAnsi() {
+            const that = this;
+            this.ansiSelect = document.getElementById("ansi");
+            
+            this.ansiSelect.onchange = function(e) {
+                that.parseContent();
+            };
+        };
+        
+        setupSave() {
+            const that = this;
+            this.saveImgButton = document.getElementById("save-img");
+            this.saveImgButton.disabled = true;
+            this.saveImgButton.onclick = function(e) {
+                html2canvas(that.container, {}).then(function(canvas) {
+                    canvas.toBlob(function(blob) {
+                        saveAs(blob, that.fileName + ".png"); 
+                    });
+                });
+            };
+            
+            this.saveTxtButton = document.getElementById("save-txt");
+            this.saveTxtButton.disabled = true;
+            this.saveTxtButton.onclick = function(e) {
+                const blob = new Blob([document.getElementById("text_file").textContent], {type: "text/plain;charset=utf-8"});
+                saveAs(blob, that.fileName + ".txt");
+            };
+        }
+        
+        parseContent() {
+            if (this.content) {
+                const newPre = document.createElement("div");
+                newPre.setAttribute("id", "text_file");
+                //newPre.appendChild(document.createTextNode(strip_ansi(content)));
+                newPre.innerHTML = this.ansiParser.parse(this.content, this.ansiSelect.value);
+                this.container.innerHTML = '';
+                this.container.appendChild(newPre);
+                this.container.style.display = "block";
+                this.saveImgButton.disabled = false;
+                this.saveTxtButton.disabled = false;
+            }
+        };
+    }
+    
+    (function() {
+        let htxt = new hTXT();
     })();
     </script>
 </body>
