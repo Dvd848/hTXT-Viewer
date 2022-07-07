@@ -30,10 +30,10 @@ import argparse
 import re
 
 from pathlib import Path
-from tkinter import CURRENT
 from PIL import Image, ImageDraw, ImageFont
-from typing import List
+from typing import List, Tuple, Union
 from collections import namedtuple
+from enum import Enum
 
 # 7-bit C1 ANSI sequences
 # https://stackoverflow.com/questions/14693701/
@@ -92,25 +92,118 @@ THEMES = {
     "light": Theme((0xFF, 0xFF, 0xFF), (0x00, 0x00, 0x00))
 }
 
-def create_tile(console_width, color):
+# https://notes.burke.libbey.me/ansi-escape-codes/
+
+class AnsiFunctions(Enum):
+    UNSUPPORTED    = "0"
+    CURSOR_FORWARD = "C"
+    SGR            = "m"
+
+class AnsiColors(Enum):
+    BLACK   = 0
+    RED     = 1
+    GREEN   = 2
+    YELLOW  = 3
+    BLUE    = 4
+    MAGENTA = 5
+    CYAN    = 6
+    WHITE   = 7
+
+class AnsiSgrCommands(Enum):
+    SET_FGCOLOR = 0
+    SET_BGCOLOR = 1
+    SET_DEFAULT = 2
+
+AnsiSgrCommand = namedtuple("AnsiSgrCommand", "type value")
+
+class AnsiEscape():
+    COLORS = {
+        AnsiColors.BLACK:   (0, 0, 0),
+        AnsiColors.RED:     (170, 0, 0),
+        AnsiColors.GREEN:   (0, 170, 0),
+        AnsiColors.YELLOW:  (170, 85, 0),
+        AnsiColors.BLUE:    (0, 0, 170),
+        AnsiColors.MAGENTA: (170, 0, 170),
+        AnsiColors.CYAN:    (0, 170, 170),
+        AnsiColors.WHITE:   (170, 170, 170)
+    }
+
+    FGCOLOR_BASE = 30
+    BGCOLOR_BASE = 40
+
+    def __init__(self, raw_string: str) -> None:
+        self.raw_string = raw_string
+        self._parse_ansi(raw_string)
+
+    def _parse_ansi(self, raw_string: str) -> None:
+        self._arguments = []
+        for argument in raw_string[2:-1].split(b";"):
+            self._arguments.append(int(argument))
+        self._function = chr(raw_string[-1])
+
+    def __repr__(self) -> str:
+        return f"AnsiEscape(function = {self._function}, arguments = {self._arguments})"
+
+    @property
+    def function(self):
+        try:
+            return AnsiFunctions(self._function)
+        except ValueError:
+            print(f"Unsupported function: {self._function}")
+            return AnsiFunctions.UNSUPPORTED
+
+    @property
+    def arguments(self):
+        if self.function == AnsiFunctions.CURSOR_FORWARD:
+            return self._arguments[0]
+        elif self.function == AnsiFunctions.SGR:
+            res = []
+            for arg in self._arguments:
+                if self.FGCOLOR_BASE <= arg < self.FGCOLOR_BASE + len(self.COLORS):
+                    res.append(AnsiSgrCommand(AnsiSgrCommands.SET_FGCOLOR, self.COLORS[AnsiColors(arg - self.FGCOLOR_BASE)]))
+                elif self.BGCOLOR_BASE <= arg < self.BGCOLOR_BASE + len(self.COLORS):
+                    res.append(AnsiSgrCommand(AnsiSgrCommands.SET_BGCOLOR, self.COLORS[AnsiColors(arg - self.BGCOLOR_BASE)]))
+                elif arg == 0:
+                    res.append(AnsiSgrCommand(AnsiSgrCommands.SET_DEFAULT, 0))
+            return res
+        else:
+            raise NotImplemented(f"Cannot interpret arguments for function {str(self.function)}")
+
+
+def create_tile(console_width: int, color: Tuple[int, int, int]) -> Tuple[Image.Image, ImageDraw.ImageDraw]:
     img = Image.new('RGB', (console_width * FONT_WIDTH, FONT_HEIGHT), color = color)
     d = ImageDraw.Draw(img)
 
     return img, d
 
-def decode_file(buffer: bytes) -> List[str]:
+def write_to_img(d: ImageDraw.ImageDraw, c: str, offset: int, bgcolor: Tuple[int, int, int], fgcolor: Tuple[int, int, int], font) -> None:
+        d.rectangle(((FONT_WIDTH * offset, 0), ((FONT_WIDTH * offset) + FONT_WIDTH, FONT_HEIGHT)), fill=bgcolor)
+        d.text((FONT_WIDTH * offset, 0), c, fill = fgcolor, font = font)
+
+def decode_file(buffer: bytes) -> List[Union[str, AnsiEscape]]:
     res = []
-    buffer = ansi_escape.sub(b'', buffer)
-    for byte in buffer:
-        try:
-            c = translation[byte]
-        except KeyError:
-            c = chr(byte)
-        res.append(c)
+    #buffer = ansi_escape.sub(b'', buffer)
+    ansi_locations = {}
+    for match in ansi_escape.finditer(buffer):
+        ansi_locations[match.start()] = match.group()
     
+    i = 0
+    while i < len(buffer):
+        if i in ansi_locations:
+            res.append(AnsiEscape(ansi_locations[i]))
+            i += len(ansi_locations[i])
+        else:
+            byte = buffer[i]
+            try:
+                c = translation[byte]
+            except KeyError:
+                c = chr(byte)
+            res.append(c)
+            i += 1
+
     return res
 
-def file_to_image(buffer: bytes, **kwargs) -> Image:
+def file_to_image(buffer: bytes, **kwargs) -> Image.Image:
 
     console_width = kwargs.get("console_width", CONSOLE_WIDTH_DEFAULT)
     if console_width < CONSOLE_WIDTH_MIN or console_width > CONSOLE_WIDTH_MAX:
@@ -120,6 +213,8 @@ def file_to_image(buffer: bytes, **kwargs) -> Image:
         theme = THEMES[kwargs.get("theme", "dark")]
     except KeyError:
         raise ValueError(f"Unknown theme: {kwargs['theme']}")
+
+    skip_ansi = kwargs.get("skip_ansi", False)
 
     try:
         font = ImageFont.truetype(str(FONT_PATH), FONT_SIZE)
@@ -133,16 +228,45 @@ def file_to_image(buffer: bytes, **kwargs) -> Image:
     img, d = create_tile(console_width, theme.bgcolor)
     offset = 0
 
+    bgcolor = theme.bgcolor
+    fgcolor = theme.fgcolor
+
+    newline = False
+
     for c in content:
-        if c == "\n":
+        if c == "\n" or newline:
             tiles.append(img)
             img, d = create_tile(console_width, theme.bgcolor)
             offset = 0
+            newline = False
         elif c == "\r":
-            pass
+            continue
+        elif isinstance(c, AnsiEscape):
+            if skip_ansi:
+                continue
+            if c.function == AnsiFunctions.CURSOR_FORWARD:
+                for i in range(c.arguments):
+                    write_to_img(d, " ", offset, bgcolor, fgcolor, font)
+                    offset += 1
+                    if offset >= console_width:
+                        tiles.append(img)
+                        img, d = create_tile(console_width, theme.bgcolor)
+                        offset = 0
+            elif c.function == AnsiFunctions.SGR:
+                for command in c.arguments:
+                    if command.type == AnsiSgrCommands.SET_FGCOLOR:
+                        fgcolor = command.value
+                    elif command.type == AnsiSgrCommands.SET_BGCOLOR:
+                        bgcolor = command.value
+                    elif command.type == AnsiSgrCommands.SET_DEFAULT:
+                        fgcolor = theme.fgcolor
+                        bgcolor = theme.bgcolor
         else:
-            d.text((FONT_WIDTH * offset, 0), c, fill = theme.fgcolor, font = font)
-            offset += 1            
+            write_to_img(d, c, offset, bgcolor, fgcolor, font)
+            offset += 1
+
+            if offset >= console_width:
+                newline = True
 
     if tiles[-1] != img:
         tiles.append(img)
@@ -167,15 +291,14 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--output', type=str, help="Output file")
     parser.add_argument('-w', '--console-width', type=int, default=CONSOLE_WIDTH_DEFAULT, help="Console width")
     parser.add_argument('-t', '--theme', choices=["dark", "light"], default="dark", help="Image theme")
+    parser.add_argument('-s', '--skip_ansi', action='store_true', default=False, help="Skip ANSI Color codes")
 
     args = parser.parse_args()
     kwargs = {}
 
-    if args.console_width:
-        kwargs["console_width"] = args.console_width
-    
-    if args.theme:
-        kwargs["theme"] = args.theme
+    kwargs["console_width"] = args.console_width
+    kwargs["theme"] = args.theme
+    kwargs["skip_ansi"] = args.skip_ansi
 
     output_file = None
     if args.output is not None:
