@@ -137,8 +137,13 @@ class AnsiEscape():
 
     def _parse_ansi(self, raw_string: str) -> None:
         self._arguments = []
-        for argument in raw_string[2:-1].split(b";"):
-            self._arguments.append(int(argument))
+        arguments = raw_string[2:-1]
+        if arguments != b"":
+            for argument in arguments.split(b";"):
+                try:
+                    self._arguments.append(int(argument))
+                except ValueError:
+                    print(f"Unable to parse argument \"{argument.decode('ascii')}\" of \"{raw_string.decode('ascii')}\"")
         self._function = chr(raw_string[-1])
 
     def __repr__(self) -> str:
@@ -311,3 +316,4 @@ if __name__ == "__main__":
         main(args.input, output_file, **kwargs)
     except Exception as e:
         raise SystemExit(f"Error: {str(e)}")
+        #raise
