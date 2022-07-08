@@ -118,7 +118,7 @@ AnsiSgrCommand = namedtuple("AnsiSgrCommand", "type value")
 
 class AnsiEscape():
     COLORS = {
-        AnsiColors.BLACK:   (0, 0, 0),
+        AnsiColors.BLACK:   (12, 12, 12),
         AnsiColors.RED:     (170, 0, 0),
         AnsiColors.GREEN:   (0, 170, 0),
         AnsiColors.YELLOW:  (170, 85, 0),
@@ -160,7 +160,7 @@ class AnsiEscape():
     @property
     def arguments(self):
         if self.function == AnsiFunctions.CURSOR_FORWARD:
-            return self._arguments[0]
+            return self._arguments[0] if len(self._arguments) > 0 else 1
         elif self.function == AnsiFunctions.SGR:
             res = []
             for arg in self._arguments:
@@ -273,7 +273,7 @@ def file_to_image(buffer: bytes, **kwargs) -> Image.Image:
             if offset >= console_width:
                 newline = True
 
-    if tiles[-1] != img:
+    if len(tiles) == 0 or tiles[-1] != img:
         tiles.append(img)
         
     height = len(tiles) * FONT_HEIGHT
@@ -285,6 +285,7 @@ def file_to_image(buffer: bytes, **kwargs) -> Image.Image:
     return output
 
 def main(input_path: str, output_path: str, **kwargs) -> None:
+    print(f"Parsing {input_path}")
     with open(input_path, "rb") as f:
         output = file_to_image(f.read(), **kwargs)
         output.save(output_path)
