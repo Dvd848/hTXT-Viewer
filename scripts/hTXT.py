@@ -95,9 +95,11 @@ THEMES = {
 # https://notes.burke.libbey.me/ansi-escape-codes/
 
 class AnsiFunctions(Enum):
-    UNSUPPORTED    = "0"
-    CURSOR_FORWARD = "C"
-    SGR            = "m"
+    UNSUPPORTED         = "0"
+    CURSOR_FORWARD      = "C"
+    CURSOR_BACK         = "D"
+    ERASE_IN_DISPLAY    = "J"
+    SGR                 = "m"
 
 class AnsiColors(Enum):
     BLACK   = 0
@@ -113,6 +115,12 @@ class AnsiSgrCommands(Enum):
     SET_FGCOLOR = 0
     SET_BGCOLOR = 1
     SET_DEFAULT = 2
+
+class AnsiEdCommands(Enum):
+    CURSOR_TO_END   = 0
+    CURSOR_TO_START = 1
+    ENTIRE_SCREEN   = 2
+
 
 AnsiSgrCommand = namedtuple("AnsiSgrCommand", "type value")
 
@@ -159,7 +167,7 @@ class AnsiEscape():
 
     @property
     def arguments(self):
-        if self.function == AnsiFunctions.CURSOR_FORWARD:
+        if self.function in [AnsiFunctions.CURSOR_FORWARD, AnsiFunctions.CURSOR_BACK]:
             return self._arguments[0] if len(self._arguments) > 0 else 1
         elif self.function == AnsiFunctions.SGR:
             res = []
@@ -171,6 +179,8 @@ class AnsiEscape():
                 elif arg == 0:
                     res.append(AnsiSgrCommand(AnsiSgrCommands.SET_DEFAULT, 0))
             return res
+        elif self.function == AnsiFunctions.ERASE_IN_DISPLAY:
+            return AnsiEdCommands(self._arguments[0] if len(self._arguments) > 0 else 0)
         else:
             raise NotImplemented(f"Cannot interpret arguments for function {str(self.function)}")
 
@@ -244,7 +254,7 @@ def file_to_image(buffer: bytes, **kwargs) -> Image.Image:
             img, d = create_tile(console_width, theme.bgcolor)
             offset = 0
             newline = False
-        elif c == "\r":
+        elif c in ["\r", "♣"]:
             continue
         elif isinstance(c, AnsiEscape):
             if skip_ansi:
@@ -257,6 +267,13 @@ def file_to_image(buffer: bytes, **kwargs) -> Image.Image:
                         tiles.append(img)
                         img, d = create_tile(console_width, theme.bgcolor)
                         offset = 0
+            elif c.function == AnsiFunctions.CURSOR_BACK:
+                offset = min(0, offset - c.arguments)
+            elif c.function == AnsiFunctions.ERASE_IN_DISPLAY:
+                if c.arguments == AnsiEdCommands.ENTIRE_SCREEN:
+                    tiles = []
+                    img, d = create_tile(console_width, theme.bgcolor)
+                    offset = 0
             elif c.function == AnsiFunctions.SGR:
                 for command in c.arguments:
                     if command.type == AnsiSgrCommands.SET_FGCOLOR:
