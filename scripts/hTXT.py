@@ -31,7 +31,7 @@ import re
 
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Any
 from collections import namedtuple
 from enum import Enum
 
@@ -50,6 +50,7 @@ ansi_escape = re.compile(b'''
 ''', re.VERBOSE)
 
 translation = {
+    # CP 437
     0x01: '☺', 0x02: '☻', 0x03: '♥', 0x04: '♦', 0x05: '♣', 0x06: '♠', 0x07: '•', 
     0x08: '◘', 0x09: '○', 0x0B: '♂', 0x0C: '♀', 0x0E: '♫', 0x0F: '☼', 
     0x10: '►', 0x11: '◄', 0x12: '↕', 0x13: '‼', 0x14: '¶', 0x15: '§', 0x16: '▬', 0x17: '↨', 
@@ -69,22 +70,22 @@ translation = {
     0xF0: '≡', 0xF1: '±', 0xF2: '≥', 0xF3: '≤', 0xF4: '⌠', 0xF5: '⌡', 0xF6: '÷', 0xF7: '≈', 
     0xF8: '°', 0xF9: '∙', 0xFA: '·', 0xFB: '√', 0xFC: 'ⁿ', 0xFD: '²', 0xFE: '■', 0xFF: chr(160),
 
+    # CP 862
     0x80: 'א', 0x81: 'ב', 0x82: 'ג', 0x83: 'ד', 0x84: 'ה', 0x85: 'ו', 0x86: 'ז', 0x87: 'ח',
     0x88: 'ט', 0x89: 'י', 0x8A: 'ך', 0x8B: 'כ', 0x8C: 'ל', 0x8D: 'ם', 0x8E: 'מ', 0x8F: 'ן',
     0x90: 'נ', 0x91: 'ס', 0x92: 'ע', 0x93: 'ף', 0x94: 'פ', 0x95: 'ץ', 0x96: 'צ', 0x97: 'ק',
     0x98: 'ר', 0x99: 'ש', 0x9A: 'ת',
 }
 
-CURRENT_SCRIPT = Path(__file__).parent.resolve()
-FONT_PATH = CURRENT_SCRIPT / '..' / 'resources' / 'clacon2.ttf'
-FONT_SIZE = 16
-FONT_WIDTH = 8
-FONT_HEIGHT = 13
-CONSOLE_WIDTH_DEFAULT = 80
-CONSOLE_WIDTH_MIN = 40
-CONSOLE_WIDTH_MAX = 1000
+CURRENT_SCRIPT  = Path(__file__).parent.resolve()
+FONT_PATH       = CURRENT_SCRIPT / '..' / 'resources' / 'clacon2.ttf'
 
-LEFT_RIGHT_MARK = u"\u200E"
+FONT_SIZE               = 16
+FONT_WIDTH              = 8
+FONT_HEIGHT             = 13
+CONSOLE_WIDTH_DEFAULT   = 80
+CONSOLE_WIDTH_MIN       = 40
+CONSOLE_WIDTH_MAX       = 1000
 
 Theme = namedtuple("namedtuple", "bgcolor fgcolor")
 THEMES = {
@@ -92,9 +93,10 @@ THEMES = {
     "light": Theme((0xFF, 0xFF, 0xFF), (0x00, 0x00, 0x00))
 }
 
-# https://notes.burke.libbey.me/ansi-escape-codes/
 
 class AnsiFunctions(Enum):
+    # https://en.wikipedia.org/wiki/ANSI_escape_code
+    # https://notes.burke.libbey.me/ansi-escape-codes/
     UNSUPPORTED         = "0"
     CURSOR_FORWARD      = "C"
     CURSOR_BACK         = "D"
@@ -116,15 +118,17 @@ class AnsiSgrCommands(Enum):
     SET_BGCOLOR = 1
     SET_DEFAULT = 2
 
+AnsiSgrCommand = namedtuple("AnsiSgrCommand", "type value")
+
 class AnsiEdCommands(Enum):
     CURSOR_TO_END   = 0
     CURSOR_TO_START = 1
     ENTIRE_SCREEN   = 2
 
 
-AnsiSgrCommand = namedtuple("AnsiSgrCommand", "type value")
-
 class AnsiEscape():
+    """Represents an ANSI Escape Sequence."""
+
     COLORS = {
         AnsiColors.BLACK:   (12, 12, 12),
         AnsiColors.RED:     (170, 0, 0),
@@ -140,10 +144,26 @@ class AnsiEscape():
     BGCOLOR_BASE = 40
 
     def __init__(self, raw_string: str) -> None:
+        """Initialize an ANSI escape sequence from a raw string.
+        
+            For example:
+               AnsiEscape("\x1b[1;37;41m") 
+               AnsiEscape("\x1b[16C")
+
+            Params:
+                raw_string: 
+                    The raw ANSI escape sequence.
+        """
         self.raw_string = raw_string
         self._parse_ansi(raw_string)
 
     def _parse_ansi(self, raw_string: str) -> None:
+        """Parse the ANSI escape sequence and separate it to a function and arguments.
+        
+            Params:
+                raw_string: 
+                    The raw ANSI escape sequence.
+        """
         self._arguments = []
         arguments = raw_string[2:-1]
         if arguments != b"":
@@ -158,7 +178,8 @@ class AnsiEscape():
         return f"AnsiEscape(function = {self._function}, arguments = {self._arguments})"
 
     @property
-    def function(self):
+    def function(self) -> AnsiFunctions:
+        """Return the ANSI function."""
         try:
             return AnsiFunctions(self._function)
         except ValueError:
@@ -166,7 +187,8 @@ class AnsiEscape():
             return AnsiFunctions.UNSUPPORTED
 
     @property
-    def arguments(self):
+    def arguments(self) -> Any:
+        """Returns the ANSI function arguments depending on the function."""
         if self.function in [AnsiFunctions.CURSOR_FORWARD, AnsiFunctions.CURSOR_BACK]:
             return self._arguments[0] if len(self._arguments) > 0 else 1
         elif self.function == AnsiFunctions.SGR:
@@ -186,28 +208,86 @@ class AnsiEscape():
 
 
 def create_tile(console_width: int, color: Tuple[int, int, int]) -> Tuple[Image.Image, ImageDraw.ImageDraw]:
+    """Helper function to create a single tile to hold a single line of text.
+    
+        Params:
+            console_width: 
+                The requested console width.
+            
+            color: 
+                The tile's background color.
+
+        Returns:
+            A tuple containing the tile itself and the ImageDraw object for that tile.
+    """
     img = Image.new('RGB', (console_width * FONT_WIDTH, FONT_HEIGHT), color = color)
     d = ImageDraw.Draw(img)
 
     return img, d
 
 def write_to_img(d: ImageDraw.ImageDraw, c: str, offset: int, bgcolor: Tuple[int, int, int], fgcolor: Tuple[int, int, int], font) -> None:
-        d.rectangle(((FONT_WIDTH * offset, 0), ((FONT_WIDTH * offset) + FONT_WIDTH, FONT_HEIGHT)), fill=bgcolor)
-        d.text((FONT_WIDTH * offset, 0), c, fill = fgcolor, font = font)
+    """Helper function to write a single character to the given tile.
+
+        Params:
+            d:
+                The ImageDraw object for the tile.
+
+            c:
+                The character to write.
+
+            offset:
+                The offset to write the character to.
+
+            bgcolor:
+                The requested background color.
+
+            fgcolor:
+                The requested text color.
+
+            font:
+                The requested font.
+    """
+    d.rectangle(((FONT_WIDTH * offset, 0), ((FONT_WIDTH * offset) + FONT_WIDTH, FONT_HEIGHT)), fill=bgcolor)
+    d.text((FONT_WIDTH * offset, 0), c, fill = fgcolor, font = font)
 
 def decode_file(buffer: bytes) -> List[Union[str, AnsiEscape]]:
+    """Decode a given text and return the decoded result.
+    
+        This function accepts a buffer containing text encoded with CP862/CP437 (and optionally ANSI Escape codes).
+        It translates the text to UTF-8 and returns a list of decoded characters, together with AnsiEscape objects
+        representing the ANSI Escape codes.
+
+        For example, given the following input:
+            "\x80A\x1b[1;37;41m\xdb"
+        The function will return:
+            ['א', 'A', AnsiEscape("\x1b[1;37;41m"), '█']
+
+        Params:
+            buffer:
+                Input buffer.
+
+        Returns:
+            List of characters/AnsiEscape objects.
+    """
     res = []
+
     #buffer = ansi_escape.sub(b'', buffer)
+
+    # First, we find the offset for all ANSI escape sequences, and store them in a dictionary
     ansi_locations = {}
     for match in ansi_escape.finditer(buffer):
         ansi_locations[match.start()] = match.group()
     
+    # Now we iterate the buffer character by character
     i = 0
     while i < len(buffer):
         if i in ansi_locations:
+            # If this is an ANSI escape sequence, create the object and skip it
             res.append(AnsiEscape(ansi_locations[i]))
             i += len(ansi_locations[i])
         else:
+            # Otherwise, this is a character 
+            # Try to decode using the translation table and fallback to standard ASCII
             byte = buffer[i]
             try:
                 c = translation[byte]
@@ -219,6 +299,20 @@ def decode_file(buffer: bytes) -> List[Union[str, AnsiEscape]]:
     return res
 
 def file_to_image(buffer: bytes, **kwargs) -> Image.Image:
+    """Export a given text file as a decoded image.
+
+        Params:
+            buffer:
+                Buffer representing the text file.
+            
+            kwargs:
+                console_width: 
+                    Console Width (in characters). Default is CONSOLE_WIDTH_DEFAULT.
+                theme:
+                    Default color theme ("dark" / "light"). Default is "dark".
+                skip_ansi:
+                    Whether or not to parse ANSI escape codes. Default is False.
+    """
 
     console_width = kwargs.get("console_width", CONSOLE_WIDTH_DEFAULT)
     if console_width < CONSOLE_WIDTH_MIN or console_width > CONSOLE_WIDTH_MAX:
@@ -238,6 +332,11 @@ def file_to_image(buffer: bytes, **kwargs) -> Image.Image:
 
     content = decode_file(buffer)
     
+    # Since we don't know the height of the final image, we process it with "tiles".
+    # Each tile represents a single line containing "console_width" characters. 
+    # Once we are done processing the entire file, we "paste" the tiles one after the other
+    # to receive the complete image.
+
     tiles = []
 
     img, d = create_tile(console_width, theme.bgcolor)
@@ -246,27 +345,31 @@ def file_to_image(buffer: bytes, **kwargs) -> Image.Image:
     bgcolor = theme.bgcolor
     fgcolor = theme.fgcolor
 
-    newline = False
+    def newline(img: Image.Image, d: ImageDraw.ImageDraw) -> Tuple[Image.Image, ImageDraw.ImageDraw, int]:
+        tiles.append(img)
+        img, d = create_tile(console_width, theme.bgcolor)
+        offset = 0
+        return img, d, offset
 
     for c in content:
-        if c == "\n" or newline:
-            tiles.append(img)
-            img, d = create_tile(console_width, theme.bgcolor)
-            offset = 0
-            newline = False
+        if c == "\n":
+            # Save the previous tile and start a new one
+            img, d, offset = newline(img, d)
         elif c in ["\r", "♣"]:
+            # Skip these characters
             continue
         elif isinstance(c, AnsiEscape):
             if skip_ansi:
+                # Skip the ANSI escape sequence if requested
                 continue
+
+            # Otherwise, handle it according to the function
             if c.function == AnsiFunctions.CURSOR_FORWARD:
                 for i in range(c.arguments):
                     write_to_img(d, " ", offset, theme.bgcolor, theme.fgcolor, font)
                     offset += 1
                     if offset >= console_width:
-                        tiles.append(img)
-                        img, d = create_tile(console_width, theme.bgcolor)
-                        offset = 0
+                        img, d, offset = newline(img, d)
             elif c.function == AnsiFunctions.CURSOR_BACK:
                 offset = min(0, offset - c.arguments)
             elif c.function == AnsiFunctions.ERASE_IN_DISPLAY:
@@ -284,15 +387,19 @@ def file_to_image(buffer: bytes, **kwargs) -> Image.Image:
                         fgcolor = theme.fgcolor
                         bgcolor = theme.bgcolor
         else:
+            # Just text, write it
             write_to_img(d, c, offset, bgcolor, fgcolor, font)
             offset += 1
 
             if offset >= console_width:
-                newline = True
+                # A new line is needed here as well
+                img, d, offset = newline(img, d)
 
     if len(tiles) == 0 or tiles[-1] != img:
+        # Append the last tile if we didn't do so already
         tiles.append(img)
         
+    # Create the full image by pasting the tiles one after the other
     height = len(tiles) * FONT_HEIGHT
     output = Image.new('RGB', (console_width * FONT_WIDTH, height), color = theme.bgcolor)
 
@@ -302,7 +409,7 @@ def file_to_image(buffer: bytes, **kwargs) -> Image.Image:
     return output
 
 def main(input_path: str, output_path: str, **kwargs) -> None:
-    print(f"Parsing {input_path}")
+    print(f"Parsing '{input_path}'")
     with open(input_path, "rb") as f:
         output = file_to_image(f.read(), **kwargs)
         output.save(output_path)
