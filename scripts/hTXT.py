@@ -251,7 +251,7 @@ def file_to_image(buffer: bytes, **kwargs) -> Image.Image:
                 continue
             if c.function == AnsiFunctions.CURSOR_FORWARD:
                 for i in range(c.arguments):
-                    write_to_img(d, " ", offset, bgcolor, fgcolor, font)
+                    write_to_img(d, " ", offset, theme.bgcolor, theme.fgcolor, font)
                     offset += 1
                     if offset >= console_width:
                         tiles.append(img)
