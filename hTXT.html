@@ -98,6 +98,9 @@
         .light_theme {
             background: white;
             color: black;
+        }
+
+        div.light_theme {
             border: 1px solid black;
         }
         
@@ -160,7 +163,7 @@
        </div>
         
         <div id="dropzone" class="dropzone"></div>
-        <div id="container"></div>
+        <div id="container" class="theme_needed"></div>
 
 
         
@@ -275,7 +278,6 @@
                             return ""; 
                         }
                         
-
                         if ( (parsed == that.RESET) && (span_counter > 0) ) {
                             for (let i = 0; i < span_counter; i++)
                             {
@@ -305,11 +307,15 @@
                     
                 }
                 else if (func == "C") {
+                    if (args == "")
+                    {
+                        args = "1";
+                    }
                     const parsed = parseInt(args, 10);
                     if (isNaN(parsed)) { 
                         return ""; 
                     }
-                    res += " ".repeat(parsed)
+                    res += "<span class='theme_needed'>" + " ".repeat(parsed) + "</span>"
                 }
                 else {
                     console.log(`Unsupported ANSI Escape Code function: ${func}`);
@@ -441,21 +447,30 @@
         setupTheme() {
             const that = this;
             const themeSelect = document.getElementById("theme");
-            const onThemeSelect = function(e) {
+            that.onThemeSelect = function(e) {
+                let class_add;
+                let class_remove;
                 switch (themeSelect.value)
                 {
                     case "light":
-                        that.container.classList.remove("dark_theme");
+                        class_add = "light_theme";
+                        class_remove = "dark_theme";
                         break;
                     case "dark":
                     default:
-                        that.container.classList.add("dark_theme");
+                        class_add = "dark_theme";
+                        class_remove = "light_theme";
                         break;
                 }
+
+                document.querySelectorAll('.theme_needed').forEach(function(element) {
+                    element.classList.add(class_add);
+                    element.classList.remove(class_remove);
+                });
             };
             
-            themeSelect.onchange = onThemeSelect;
-            onThemeSelect();
+            themeSelect.onchange = that.onThemeSelect;
+            that.onThemeSelect();
         };
         
         setupAnsi() {
@@ -496,6 +511,7 @@
                 this.container.innerHTML = '';
                 this.container.appendChild(newPre);
                 this.container.style.display = "block";
+                this.onThemeSelect();
                 this.saveImgButton.disabled = false;
                 this.saveTxtButton.disabled = false;
             }
