@@ -5,7 +5,7 @@
     <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title>hTXT Viewer</title>
+    <title>hTXT Viewer | Online NFO Viewer</title>
     
     <!--
         https://github.com/Dvd848/hTXT-Viewer
@@ -27,10 +27,12 @@
         THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     -->
     
+    <!--link rel="preload" href="resources/clacon2.woff2" as="font" type="font/woff"-->
     <style>
         @font-face {
           font-family: "Classic Console Neue";
-          src: url("resources/clacon2.woff2") format("woff2");
+          src: url("resources/clacon2.woff2") format("woff2"),
+               url("resources/clacon2") format("truetype");
         }
         
         #text_file {
@@ -66,6 +68,7 @@
             
         h1 {
             text-align: center;
+            font-family: "Classic Console Neue";
         }
 
         .infoBox {
@@ -123,12 +126,23 @@
             background: rgba(96, 167, 220,.8);
             border: 11px dashed #60a7dc;
         }
+
+        #loading {
+            display: none;
+            margin: 0 auto;
+            padding: 10px;
+            width: 30%;
+            text-align: center;
+            font-family: "Classic Console Neue";
+            
+        }
         
         footer {
             padding: 3px;
             font-size: 0.7em;
             text-align: center;
             margin: 10px 0 0 0;
+            font-family: "Classic Console Neue";
         }
     </style>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
@@ -159,18 +173,20 @@
         
         <div id="dropzone" class="dropzone"></div>
         <div id="container" class="theme_needed dark_theme"></div>
+        <div id="loading"></div>
 
 
         
     </div>
     <footer><a href="https://github.com/Dvd848/hTXT-Viewer">[View Source on GitHub]</a></footer>
-    <script src="js/hTXT.js"></script>
+    <script src="js/hTXT.js?1"></script>
     <script>
     'use strict';
     
     class hTXT {
         constructor() {
             this.container = document.getElementById("container");
+            this.loading = document.getElementById("loading");
             
             this.codePageTranslator = new CodePageTranslator();
             this.ansiParser = new AnsiParser();
@@ -190,12 +206,18 @@
             const that = this;
             this.fileInput = document.getElementById('file');
             this.fReader = new FileReader();
+
+            this.updateProgress = function(action, percent) {
+                that.loading.innerHTML = `${action} (${Math.floor(percent)}%)`;
+            }
             
             this.fReader.onload = async function(e) {
+                that.loading.style.display = "block";
                 that.container.innerHTML = '';
+                that.saveImgButton.disabled = true;
                 const buffer = new Uint8Array(e.target.result);
                 
-                that.content_promise = that.codePageTranslator.translate(buffer);
+                that.content_promise = that.codePageTranslator.translate(buffer, that.updateProgress);
                 that.parseContent();
             };
             
@@ -318,13 +340,18 @@
         async parseContent() {
             if (this.content_promise) {
                 this.content = await this.content_promise;
+                console.log("Content ready!");
             }
             if (this.content) {     
                 const terminal = new Terminal(80);
-                await this.ansiParser.parse(this.content, terminal);
-                const canvas = await terminal.toCanvas();
+                await this.ansiParser.parse(this.content, terminal, this.updateProgress);
+                console.log("Parsing done!");
+
+                const canvas = await terminal.toCanvas(this.updateProgress);
+                console.log("Canvas ready!");
                 canvas.setAttribute("id", "output_canvas");
 
+                this.loading.style.display = "none";
                 this.container.innerHTML = '';
                 this.container.appendChild(canvas);
 
@@ -338,7 +365,7 @@
     }
     
     (function() {
-        document.fonts.ready.then(() => {
+        document.fonts.ready.then(function () {
             let htxt = new hTXT();
         });
     })();

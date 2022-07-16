@@ -234,7 +234,7 @@ class CodePageTranslator {
         return String.fromCharCode(asciiValue);
     }
 
-    async translate(buffer) {
+    async translate(buffer, progressCallback) {
         let then = performance.now();
         let counter = 0;
         let content = "";
@@ -242,6 +242,9 @@ class CodePageTranslator {
             content += this.translateChar(x);
             then = await pauseIfNeeded(counter, then);
             counter++;
+            if (counter % 100 == 0) {
+                progressCallback("Translating characters", (counter / buffer.length) * 100);
+            }
         }
         
         let ansiLocations = {};
@@ -270,6 +273,9 @@ class CodePageTranslator {
                 i += 1
             }
             then = await pauseIfNeeded(i, then); // TODO: Might skip mod(1000) since i jumps in values
+            if (i % 100 == 0) {
+                progressCallback("Collecting content", (i / content.length) * 100);
+            }
         }
 
         return res;
@@ -282,7 +288,7 @@ class AnsiParser {
     constructor() {
     }
 
-    async parse(content, terminal) {
+    async parse(content, terminal, progressCallback) {
         let then = performance.now();
         let counter = 0;
         for (let c of content) {
@@ -338,6 +344,9 @@ class AnsiParser {
             }
             then = await pauseIfNeeded(counter, then);
             counter++;
+            if (counter % 100 == 0) {
+                progressCallback("Parsing content", (counter / content.length) * 100);
+            }
         }
     }
 }
@@ -461,10 +470,12 @@ class Terminal {
         this.col = col;
     }
 
-    async toCanvas() {
+    async toCanvas(progressCallback) {
         let res = document.createElement('canvas');
         if (this.tiles.length > 0) {
             res.width = this.tiles[0].width;
+            // TODO: https://bugzilla.mozilla.org/show_bug.cgi?id=1282074
+            // In Firefox, the max value for each dimension is 32767
             res.height = this.tiles[0].height * this.tiles.length;
             let ctx = res.getContext('2d');
 
@@ -475,6 +486,9 @@ class Terminal {
                     await oneMoment();
                 }
                 col++;
+                if (col % 100 == 0) {
+                    progressCallback("Creating image", (col / this.tiles.length) * 100);
+                }
             }
         }
         return res;
