@@ -21,7 +21,7 @@ The Python script under `scripts` can be used to convert the text files to image
 
 ```console
 $ python3 hTXT.py -h
-usage: hTXT.py [-h] -i INPUT [-o OUTPUT] [-w CONSOLE_WIDTH] [-t {dark,light}] [-s]
+usage: hTXT.py [-h] -i INPUT [-o OUTPUT] [-w CONSOLE_WIDTH] [-s]
 
 Decode old Hebrew text files encoded with Code Page 862
 
@@ -33,8 +33,6 @@ options:
                         Output file
   -w CONSOLE_WIDTH, --console-width CONSOLE_WIDTH
                         Console width
-  -t {dark,light}, --theme {dark,light}
-                        Image theme
   -s, --skip_ansi       Skip ANSI Color codes
 ```
 
