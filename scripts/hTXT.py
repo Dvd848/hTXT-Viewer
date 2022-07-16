@@ -77,12 +77,6 @@ translation = {
     0x98: 'ר', 0x99: 'ש', 0x9A: 'ת',
 }
 
-Theme = namedtuple("namedtuple", "bgcolor fgcolor")
-THEMES = {
-    "dark" : Theme((0x0C, 0x0C, 0x0C), (0xCC, 0xCC, 0xCC)),
-    "light": Theme((0xFF, 0xFF, 0xFF), (0x00, 0x00, 0x00))
-}
-
 
 class AnsiFunctions(Enum):
     # https://en.wikipedia.org/wiki/ANSI_escape_code
@@ -454,8 +448,6 @@ def file_to_image(buffer: bytes, **kwargs) -> Image.Image:
             kwargs:
                 console_width: 
                     Console Width (in characters). Default is CONSOLE_WIDTH_DEFAULT.
-                theme:
-                    Default color theme ("dark" / "light"). Default is "dark".
                 skip_ansi:
                     Whether or not to parse ANSI escape codes. Default is False.
     """
@@ -463,11 +455,6 @@ def file_to_image(buffer: bytes, **kwargs) -> Image.Image:
     console_width = kwargs.get("console_width", Terminal.CONSOLE_WIDTH_DEFAULT)
     if console_width < Terminal.CONSOLE_WIDTH_MIN or console_width > Terminal.CONSOLE_WIDTH_MAX:
         raise ValueError(f"Console width {console_width} not in allowed range ({Terminal.CONSOLE_WIDTH_MIN}-{Terminal.CONSOLE_WIDTH_MAX}")
-
-    try:
-        theme = THEMES[kwargs.get("theme", "dark")]
-    except KeyError:
-        raise ValueError(f"Unknown theme: {kwargs['theme']}")
 
     skip_ansi = kwargs.get("skip_ansi", False)
 
@@ -520,14 +507,12 @@ if __name__ == "__main__":
     parser.add_argument('-i', '--input', type=str, required=True, help="Input file")
     parser.add_argument('-o', '--output', type=str, help="Output file")
     parser.add_argument('-w', '--console-width', type=int, default=Terminal.CONSOLE_WIDTH_DEFAULT, help="Console width")
-    parser.add_argument('-t', '--theme', choices=["dark", "light"], default="dark", help="Image theme")
     parser.add_argument('-s', '--skip_ansi', action='store_true', default=False, help="Skip ANSI Color codes")
 
     args = parser.parse_args()
     kwargs = {}
 
     kwargs["console_width"] = args.console_width
-    kwargs["theme"] = args.theme
     kwargs["skip_ansi"] = args.skip_ansi
 
     output_file = None
