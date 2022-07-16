@@ -77,16 +77,6 @@ translation = {
     0x98: 'ר', 0x99: 'ש', 0x9A: 'ת',
 }
 
-CURRENT_SCRIPT  = Path(__file__).parent.resolve()
-FONT_PATH       = CURRENT_SCRIPT / '..' / 'resources' / 'clacon2.ttf'
-
-FONT_SIZE               = 16
-FONT_WIDTH              = 8
-FONT_HEIGHT             = 13
-CONSOLE_WIDTH_DEFAULT   = 80
-CONSOLE_WIDTH_MIN       = 40
-CONSOLE_WIDTH_MAX       = 1000
-
 Theme = namedtuple("namedtuple", "bgcolor fgcolor")
 THEMES = {
     "dark" : Theme((0x0C, 0x0C, 0x0C), (0xCC, 0xCC, 0xCC)),
@@ -98,10 +88,14 @@ class AnsiFunctions(Enum):
     # https://en.wikipedia.org/wiki/ANSI_escape_code
     # https://notes.burke.libbey.me/ansi-escape-codes/
     UNSUPPORTED         = "0"
+    CURSOR_UP           = "A"
     CURSOR_FORWARD      = "C"
     CURSOR_BACK         = "D"
     ERASE_IN_DISPLAY    = "J"
     SGR                 = "m"
+    SAVE_CUR_POS        = "s"
+    RESTORE_CUR_POS     = "u"
+    CURSOR_POSITION     = "H"
 
 class AnsiColors(Enum):
     BLACK   = 0
@@ -114,9 +108,10 @@ class AnsiColors(Enum):
     WHITE   = 7
 
 class AnsiSgrCommands(Enum):
-    SET_FGCOLOR = 0
-    SET_BGCOLOR = 1
-    SET_DEFAULT = 2
+    SET_DEFAULT = 0
+    SET_BOLD    = 1
+    SET_FGCOLOR = 30
+    SET_BGCOLOR = 40
 
 AnsiSgrCommand = namedtuple("AnsiSgrCommand", "type value")
 
@@ -128,16 +123,26 @@ class AnsiEdCommands(Enum):
 
 class AnsiEscape():
     """Represents an ANSI Escape Sequence."""
-
     COLORS = {
-        AnsiColors.BLACK:   (12, 12, 12),
-        AnsiColors.RED:     (170, 0, 0),
-        AnsiColors.GREEN:   (0, 170, 0),
-        AnsiColors.YELLOW:  (170, 85, 0),
-        AnsiColors.BLUE:    (0, 0, 170),
-        AnsiColors.MAGENTA: (170, 0, 170),
-        AnsiColors.CYAN:    (0, 170, 170),
-        AnsiColors.WHITE:   (170, 170, 170)
+        AnsiColors.BLACK:   (0x0C, 0x0C, 0x0C),
+        AnsiColors.RED:     (0xAA, 0x00, 0x00),
+        AnsiColors.GREEN:   (0x00, 0xAA, 0x00),
+        AnsiColors.YELLOW:  (0xAA, 0x55, 0x00),
+        AnsiColors.BLUE:    (0x00, 0x37, 0xDA),
+        AnsiColors.MAGENTA: (0xAA, 0x00, 0xAA),
+        AnsiColors.CYAN:    (0x00, 0xAA, 0xAA),
+        AnsiColors.WHITE:   (0xAA, 0xAA, 0xAA),    
+    }
+
+    BOLD_COLORS = {
+        AnsiColors.BLACK:   (0xCC, 0xCC, 0xCC),
+        AnsiColors.RED:     (0xFF, 0x55, 0x55),
+        AnsiColors.GREEN:   (0x55, 0xFF, 0x55),
+        AnsiColors.YELLOW:  (0xFF, 0xFF, 0x55),
+        AnsiColors.BLUE:    (0x55, 0x55, 0xFF),
+        AnsiColors.MAGENTA: (0xFF, 0x55, 0xFF),
+        AnsiColors.CYAN:    (0x55, 0xFF, 0xFF),
+        AnsiColors.WHITE:   (0xFF, 0xFF, 0xFF)
     }
 
     FGCOLOR_BASE = 30
@@ -165,7 +170,8 @@ class AnsiEscape():
                     The raw ANSI escape sequence.
         """
         self._arguments = []
-        arguments = raw_string[2:-1]
+        self._raw_arguments = raw_string[2:-1]
+        arguments = self._raw_arguments
         if arguments != b"":
             for argument in arguments.split(b";"):
                 try:
@@ -189,66 +195,206 @@ class AnsiEscape():
     @property
     def arguments(self) -> Any:
         """Returns the ANSI function arguments depending on the function."""
-        if self.function in [AnsiFunctions.CURSOR_FORWARD, AnsiFunctions.CURSOR_BACK]:
+        if self.function in [AnsiFunctions.CURSOR_FORWARD, AnsiFunctions.CURSOR_BACK, AnsiFunctions.CURSOR_UP]:
             return self._arguments[0] if len(self._arguments) > 0 else 1
         elif self.function == AnsiFunctions.SGR:
             res = []
             for arg in self._arguments:
                 if self.FGCOLOR_BASE <= arg < self.FGCOLOR_BASE + len(self.COLORS):
-                    res.append(AnsiSgrCommand(AnsiSgrCommands.SET_FGCOLOR, self.COLORS[AnsiColors(arg - self.FGCOLOR_BASE)]))
+                    res.append(AnsiSgrCommand(AnsiSgrCommands.SET_FGCOLOR, AnsiColors(arg - self.FGCOLOR_BASE)))
                 elif self.BGCOLOR_BASE <= arg < self.BGCOLOR_BASE + len(self.COLORS):
-                    res.append(AnsiSgrCommand(AnsiSgrCommands.SET_BGCOLOR, self.COLORS[AnsiColors(arg - self.BGCOLOR_BASE)]))
-                elif arg == 0:
+                    res.append(AnsiSgrCommand(AnsiSgrCommands.SET_BGCOLOR, AnsiColors(arg - self.BGCOLOR_BASE)))
+                elif arg == AnsiSgrCommands.SET_BOLD.value:
+                    res.append(AnsiSgrCommand(AnsiSgrCommands.SET_BOLD, 0))
+                elif arg == AnsiSgrCommands.SET_DEFAULT.value:
                     res.append(AnsiSgrCommand(AnsiSgrCommands.SET_DEFAULT, 0))
             return res
         elif self.function == AnsiFunctions.ERASE_IN_DISPLAY:
             return AnsiEdCommands(self._arguments[0] if len(self._arguments) > 0 else 0)
+        elif self.function == AnsiFunctions.CURSOR_POSITION:
+            if (len(self._arguments) == 2):
+                return self._arguments
+            else:
+                row = 1
+                col = 1
+                if (len(self._raw_arguments) > 1):
+                    if (self._raw_arguments[0] == ";"):
+                        col = self._arguments[0]
+                    elif (self._raw_arguments[-1] == ";"):
+                        row = self._arguments[0]
+                return [row, col]
         else:
-            raise NotImplemented(f"Cannot interpret arguments for function {str(self.function)}")
+            raise NotImplementedError(f"Cannot interpret arguments for function {str(self.function)}")
 
+    @classmethod
+    def color(cls, color: AnsiColors, bold: bool) -> Tuple[int, int, int]:
+        """Return the RGB code for the given color.
 
-def create_tile(console_width: int, color: Tuple[int, int, int]) -> Tuple[Image.Image, ImageDraw.ImageDraw]:
-    """Helper function to create a single tile to hold a single line of text.
-    
         Params:
-            console_width: 
-                The requested console width.
-            
-            color: 
-                The tile's background color.
+            color:
+                A color code.
+
+            bold:
+                Whether to use normal colors or regular colors.
 
         Returns:
-            A tuple containing the tile itself and the ImageDraw object for that tile.
-    """
-    img = Image.new('RGB', (console_width * FONT_WIDTH, FONT_HEIGHT), color = color)
-    d = ImageDraw.Draw(img)
+            The matching RGB code as a tuple.
+        
+        """
+        if (bold):
+            return cls.BOLD_COLORS[color]
+        else:
+            return cls.COLORS[color]
 
-    return img, d
 
-def write_to_img(d: ImageDraw.ImageDraw, c: str, offset: int, bgcolor: Tuple[int, int, int], fgcolor: Tuple[int, int, int], font) -> None:
-    """Helper function to write a single character to the given tile.
+class Terminal():
+    """Simulates a terminal."""
 
+    FONT_PATH       = Path(__file__).parent.resolve() / '..' / 'resources' / 'clacon2.ttf'
+
+    FONT_SIZE               = 16
+    FONT_WIDTH              = 8
+    FONT_HEIGHT             = 13
+    CONSOLE_WIDTH_DEFAULT   = 80
+    CONSOLE_WIDTH_MIN       = 40
+    CONSOLE_WIDTH_MAX       = 1000
+
+    def __init__(self, width: int) -> None:
+        self.width = width
+
+        self.skipNextNewline = False
+
+        self.saved_row = None
+        self.saved_col = None
+
+        try:
+            self.font = ImageFont.truetype(str(self.FONT_PATH), self.FONT_SIZE)
+        except Exception:
+            raise FileNotFoundError(f"Can't find font: {self.FONT_PATH}")
+
+        self.clear_screen()
+        self.set_default_colors()
+    
+    def write(self, character: str) -> None:
+        """Write a single character to the terminal.
+        
         Params:
-            d:
-                The ImageDraw object for the tile.
+            character:
+                The character to write to the terminal.
+        """
 
-            c:
-                The character to write.
+        # If the tile doesn't exist yet, create it
+        for _ in range(len(self.tiles), self.row + 1):
+            img = Image.new('RGB', (self.width * self.FONT_WIDTH, self.FONT_HEIGHT), color = AnsiEscape.color(AnsiColors.BLACK, False))
+            self.tiles.append(img)
+        
 
-            offset:
-                The offset to write the character to.
+        img = self.tiles[self.row]
+        d = ImageDraw.Draw(img)
 
-            bgcolor:
-                The requested background color.
+        if (character == "\n"):
+            if not self.skipNextNewline:
+                self.row += 1
+                self.col = 0
+        elif character in ["\r", "♣"]:
+            # skip
+            pass
+        else:
+            # Background
+            d.rectangle(((self.FONT_WIDTH * self.col, 0), ((self.FONT_WIDTH * self.col) + self.FONT_WIDTH, self.FONT_HEIGHT)), 
+                        fill=AnsiEscape.color(self.background, False))
+            # Foreground
+            d.text((self.FONT_WIDTH * self.col, 0), character, fill = AnsiEscape.color(self.foreground, self.bold), font = self.font)
 
-            fgcolor:
-                The requested text color.
+            self.col += 1
+            self.skipNextNewline = False
+            
+            if (self.col == self.width):
+                self.row += 1
+                self.col = 0
+                self.skipNextNewline = True
 
-            font:
-                The requested font.
-    """
-    d.rectangle(((FONT_WIDTH * offset, 0), ((FONT_WIDTH * offset) + FONT_WIDTH, FONT_HEIGHT)), fill=bgcolor)
-    d.text((FONT_WIDTH * offset, 0), c, fill = fgcolor, font = font)
+    def move_right(self, n: int) -> None:
+        """Move the cursor right n times."""
+        self.col = min(self.col + n, self.width)
+
+    def move_left(self, n: int) -> None:
+        """Move the cursor left n times."""
+        self.col = max(self.col - n, 0)
+
+    def move_up(self, n: int) -> None:
+        """Move the cursor up n times."""
+        self.row = max(self.row - n, 0)
+    
+
+    def clear_screen(self) -> None:
+        """Clear the screen."""
+        self.row = 0
+        self.col = 0
+
+        # Since we don't know the height of the final image, we process it with "tiles".
+        # Each tile represents a single line containing "console_width" characters. 
+        # Once we are done processing the entire file, we "paste" the tiles one after the other
+        # to receive the complete image.
+        self.tiles = []
+    
+
+    def set_fgcolor(self, color: AnsiColors) -> None:
+        """Set foreground color."""
+        self.foreground = color
+    
+
+    def set_bgcolor(self, color: AnsiColors) -> None:
+        """Set background color."""
+        self.background = color
+    
+
+    def set_default_colors(self) -> None:
+        """Reset terminal colors."""
+        self.set_fgcolor(AnsiColors.WHITE)
+        self.set_bgcolor(AnsiColors.BLACK)
+        self.bold = False
+    
+
+    def set_bold(self, bold: bool) -> None:
+        """Set boldness."""
+        self.bold = bold
+    
+
+    def save_current_position(self) -> None:
+        """Save current cursor position."""
+        self.saved_row = self.row
+        self.saved_col = self.col
+    
+
+    def restore_current_position(self) -> None:
+        """Restore current cursor position."""
+        if (self.saved_row != None and self.saved_col != None):
+            self.row = self.saved_row
+            self.col = self.saved_col
+    
+            self.saved_row = None
+            self.saved_col = None
+        else:
+            print(f"Attempt to restore position when position not saved")
+
+    def set_current_position(self, row: int, col: int) -> None:
+        """Set current cursor position."""
+        self.row = row
+        self.col = col
+    
+
+    def to_img(self) -> Image.Image:
+        """Export the terminal to an image."""
+        # Create the full image by pasting the tiles one after the other
+        height = len(self.tiles) * self.FONT_HEIGHT
+        output = Image.new('RGB', (self.width * self.FONT_WIDTH, height), color = AnsiEscape.color(AnsiColors.BLACK, False))
+
+        for i, img in enumerate(self.tiles):
+            output.paste(img, (0, self.FONT_HEIGHT * i))
+
+        return output
+
 
 def decode_file(buffer: bytes) -> List[Union[str, AnsiEscape]]:
     """Decode a given text and return the decoded result.
@@ -314,9 +460,9 @@ def file_to_image(buffer: bytes, **kwargs) -> Image.Image:
                     Whether or not to parse ANSI escape codes. Default is False.
     """
 
-    console_width = kwargs.get("console_width", CONSOLE_WIDTH_DEFAULT)
-    if console_width < CONSOLE_WIDTH_MIN or console_width > CONSOLE_WIDTH_MAX:
-        raise ValueError(f"Console width {console_width} not in allowed range ({CONSOLE_WIDTH_MIN}-{CONSOLE_WIDTH_MAX}")
+    console_width = kwargs.get("console_width", Terminal.CONSOLE_WIDTH_DEFAULT)
+    if console_width < Terminal.CONSOLE_WIDTH_MIN or console_width > Terminal.CONSOLE_WIDTH_MAX:
+        raise ValueError(f"Console width {console_width} not in allowed range ({Terminal.CONSOLE_WIDTH_MIN}-{Terminal.CONSOLE_WIDTH_MAX}")
 
     try:
         theme = THEMES[kwargs.get("theme", "dark")]
@@ -325,88 +471,42 @@ def file_to_image(buffer: bytes, **kwargs) -> Image.Image:
 
     skip_ansi = kwargs.get("skip_ansi", False)
 
-    try:
-        font = ImageFont.truetype(str(FONT_PATH), FONT_SIZE)
-    except Exception:
-        raise FileNotFoundError(f"Can't find font: {FONT_PATH}")
-
+    terminal = Terminal(console_width)
     content = decode_file(buffer)
-    
-    # Since we don't know the height of the final image, we process it with "tiles".
-    # Each tile represents a single line containing "console_width" characters. 
-    # Once we are done processing the entire file, we "paste" the tiles one after the other
-    # to receive the complete image.
-
-    tiles = []
-
-    img, d = create_tile(console_width, theme.bgcolor)
-    offset = 0
-
-    bgcolor = theme.bgcolor
-    fgcolor = theme.fgcolor
-
-    def newline(img: Image.Image, d: ImageDraw.ImageDraw) -> Tuple[Image.Image, ImageDraw.ImageDraw, int]:
-        tiles.append(img)
-        img, d = create_tile(console_width, theme.bgcolor)
-        offset = 0
-        return img, d, offset
 
     for c in content:
-        if c == "\n":
-            # Save the previous tile and start a new one
-            img, d, offset = newline(img, d)
-        elif c in ["\r", "♣"]:
-            # Skip these characters
-            continue
-        elif isinstance(c, AnsiEscape):
+        if not isinstance(c, AnsiEscape):
+            terminal.write(c)
+        else:
             if skip_ansi:
-                # Skip the ANSI escape sequence if requested
                 continue
-
-            # Otherwise, handle it according to the function
             if c.function == AnsiFunctions.CURSOR_FORWARD:
-                for i in range(c.arguments):
-                    write_to_img(d, " ", offset, theme.bgcolor, theme.fgcolor, font)
-                    offset += 1
-                    if offset >= console_width:
-                        img, d, offset = newline(img, d)
+                terminal.move_right(c.arguments)
             elif c.function == AnsiFunctions.CURSOR_BACK:
-                offset = min(0, offset - c.arguments)
+                terminal.move_left(c.arguments)
+            elif c.function == AnsiFunctions.CURSOR_UP:
+                terminal.move_up(c.arguments)
             elif c.function == AnsiFunctions.ERASE_IN_DISPLAY:
                 if c.arguments == AnsiEdCommands.ENTIRE_SCREEN:
-                    tiles = []
-                    img, d = create_tile(console_width, theme.bgcolor)
-                    offset = 0
+                    terminal.clear_screen()
+            elif c.function == AnsiFunctions.SAVE_CUR_POS:
+                terminal.save_current_position()
+            elif c.function == AnsiFunctions.RESTORE_CUR_POS:
+                terminal.restore_current_position()
+            elif c.function == AnsiFunctions.CURSOR_POSITION:
+                terminal.set_current_position(c.arguments[0] - 1, c.arguments[1] - 1)
             elif c.function == AnsiFunctions.SGR:
                 for command in c.arguments:
                     if command.type == AnsiSgrCommands.SET_FGCOLOR:
-                        fgcolor = command.value
+                        terminal.set_fgcolor(command.value)
                     elif command.type == AnsiSgrCommands.SET_BGCOLOR:
-                        bgcolor = command.value
+                        terminal.set_bgcolor(command.value)
                     elif command.type == AnsiSgrCommands.SET_DEFAULT:
-                        fgcolor = theme.fgcolor
-                        bgcolor = theme.bgcolor
-        else:
-            # Just text, write it
-            write_to_img(d, c, offset, bgcolor, fgcolor, font)
-            offset += 1
-
-            if offset >= console_width:
-                # A new line is needed here as well
-                img, d, offset = newline(img, d)
-
-    if len(tiles) == 0 or tiles[-1] != img:
-        # Append the last tile if we didn't do so already
-        tiles.append(img)
-        
-    # Create the full image by pasting the tiles one after the other
-    height = len(tiles) * FONT_HEIGHT
-    output = Image.new('RGB', (console_width * FONT_WIDTH, height), color = theme.bgcolor)
-
-    for i, img in enumerate(tiles):
-        output.paste(img, (0, FONT_HEIGHT * i))
-
-    return output
+                        terminal.set_default_colors()
+                    elif command.type == AnsiSgrCommands.SET_BOLD:
+                        terminal.set_bold(True)
+    
+    return terminal.to_img()
 
 def main(input_path: str, output_path: str, **kwargs) -> None:
     print(f"Parsing '{input_path}'")
@@ -419,7 +519,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Decode old Hebrew text files encoded with Code Page 862")
     parser.add_argument('-i', '--input', type=str, required=True, help="Input file")
     parser.add_argument('-o', '--output', type=str, help="Output file")
-    parser.add_argument('-w', '--console-width', type=int, default=CONSOLE_WIDTH_DEFAULT, help="Console width")
+    parser.add_argument('-w', '--console-width', type=int, default=Terminal.CONSOLE_WIDTH_DEFAULT, help="Console width")
     parser.add_argument('-t', '--theme', choices=["dark", "light"], default="dark", help="Image theme")
     parser.add_argument('-s', '--skip_ansi', action='store_true', default=False, help="Skip ANSI Color codes")
 
