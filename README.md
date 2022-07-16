@@ -4,17 +4,16 @@ A set of tools for viewing Hebrew DOS Text files.
 
 This tool supports viewing old DOS plaintext files written in Hebrew (*[Code page 862](https://en.wikipedia.org/wiki/Code_page_862)*, a.k.a *MS-DOS Hebrew* or *OEM Hebrew*). 
 
-Basic ASCII Art via *[Code page 437](https://en.wikipedia.org/wiki/Code_page_437)* is supported as well, as well as some [ANSI escape codes](https://en.wikipedia.org/wiki/ANSI_escape_code). 
+Basic ASCII Art via *[Code page 437](https://en.wikipedia.org/wiki/Code_page_437)* is supported as well, as well as some [ANSI escape codes](https://en.wikipedia.org/wiki/ANSI_escape_code). In order to accurately display the ASCII art, a fixed width font ([Classic Console Neue](http://webdraft.hu/fonts/classic-console/)) is used.
 
 ## Tools
 
 ### Online Viewer
 
-An online viewer can be found [here](https://dvd848.github.io/hTXT-Viewer/hTXT.html). The viewer converts the old text files to UTF-8, and allows exporting the result to an image or to a text file. Since Code Page 437 was frequently used in [NFO Files](https://en.wikipedia.org/wiki/.nfo), this tool can be considered a basic **Online NFO Viewer** as well.
+An online viewer can be found [here](https://dvd848.github.io/hTXT-Viewer/hTXT.html). The viewer converts the old text files to UTF-8, and allows exporting the result to an image. Since Code Page 437 was frequently used in [NFO Files](https://en.wikipedia.org/wiki/.nfo), this tool can be considered a basic **Online NFO Viewer** as well.
 
 ![](images/online_tool.png)
 
-The tool is best viewed in Chrome. The exported text can be viewed in any text editor which supports UTF-8, but for best results a fixed width font (such as [Classic Console Neue](http://webdraft.hu/fonts/classic-console/)) should be used.
 
 ### Python Script
 
