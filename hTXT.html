@@ -338,7 +338,9 @@
     }
     
     (function() {
-        let htxt = new hTXT();
+        document.fonts.ready.then(() => {
+            let htxt = new hTXT();
+        });
     })();
     
     </script>
