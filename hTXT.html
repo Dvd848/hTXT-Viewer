@@ -132,7 +132,6 @@
         }
     </style>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.0/FileSaver.min.js" integrity="sha512-csNcFYJniKjJxRWRV1R7fvnXrycHP6qDR21mgz1ZP55xY5d+aHLfo9/FcGDQLfn2IfngbAHd8LdfsagcCqgTcQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 
@@ -150,204 +149,24 @@
             </div>
             <div>
                 <button id="save-img" disabled="disabled">Save as Image</button>
-                <button id="save-txt" disabled="disabled">Save as Text</button>
-                <select id="theme">
+                <!--button id="save-txt" disabled="disabled">Save as Text</button-->
+                <!--select id="theme">
                     <option value="dark" selected="selected">Theme: Dark</option>
                     <option value="light">Theme: Light</option>
-                </select>
-                <select id="ansi">
-                    <option value="strip" selected="selected">Strip ANSI Codes</option>
-                    <option value="translate">Parse ANSI Codes</option>
-                </select>
+                </select-->
             </div>
        </div>
         
         <div id="dropzone" class="dropzone"></div>
-        <div id="container" class="theme_needed"></div>
+        <div id="container" class="theme_needed dark_theme"></div>
 
 
         
     </div>
     <footer><a href="https://github.com/Dvd848/hTXT-Viewer">[View Source on GitHub]</a></footer>
+    <script src="js/hTXT.js"></script>
     <script>
     'use strict';
-    
-    class CodePageTranslator {
-        constructor() {
-            this.translation_map = {
-                "art": {
-                    0x01: '☺', 0x02: '☻', 0x03: '♥', 0x04: '♦', 0x05: '♣', 0x06: '♠', 0x07: '•', 
-                    0x08: '◘', 0x09: '○', 0x0B: '♂', 0x0C: '♀', 0x0E: '♫', 0x0F: '☼', 
-                    0x10: '►', 0x11: '◄', 0x12: '↕', 0x13: '‼', 0x14: '¶', 0x15: '§', 0x16: '▬', 0x17: '↨', 
-                    0x18: '↑', 0x19: '↓', 0x1A: '→', 0x1B: '←', 0x1C: '∟', 0x1D: '↔', 0x1E: '▲', 0x1F: '▼', 
-                    
-                    0x9B: '¢', 0x9C: '£', 0x9D: '¥', 0x9E: '₧', 0x9F: 'ƒ', 
-                    0xA0: 'á', 0xA1: 'í', 0xA2: 'ó', 0xA3: 'ú', 0xA4: 'ñ', 0xA5: 'Ñ', 0xA6: 'ª', 0xA7: 'º', 
-                    0xA8: '¿', 0xA9: '⌐', 0xAA: '¬', 0xAB: '½', 0xAC: '¼', 0xAD: '¡', 0xAE: '«', 0xAF: '»',
-                    0xB0: '░', 0xB1: '▒', 0xB2: '▓', 0xB3: '│', 0xB4: '┤', 0xB5: '╡', 0xB6: '╢', 0xB7: '╖', 
-                    0xB8: '╕', 0xB9: '╣', 0xBA: '║', 0xBB: '╗', 0xBC: '╝', 0xBD: '╜', 0xBE: '╛', 0xBF: '┐',
-                    0xC0: '└', 0xC1: '┴', 0xC2: '┬', 0xC3: '├', 0xC4: '─', 0xC5: '┼', 0xC6: '╞', 0xC7: '╟', 
-                    0xC8: '╚', 0xC9: '╔', 0xCA: '╩', 0xCB: '╦', 0xCC: '╠', 0xCD: '═', 0xCE: '╬', 0xCF: '╧',
-                    0xD0: '╨', 0xD1: '╤', 0xD2: '╥', 0xD3: '╙', 0xD4: '╘', 0xD5: '╒', 0xD6: '╓', 0xD7: '╫',
-                    0xD8: '╪', 0xD9: '┘', 0xDA: '┌', 0xDB: '█', 0xDC: '▄', 0xDD: '▌', 0xDE: '▐', 0xDF: '▀',
-                    0xE0: 'α', 0xE1: 'ß', 0xE2: 'Γ', 0xE3: 'π', 0xE4: 'Σ', 0xE5: 'σ', 0xE6: 'µ', 0xE7: 'τ', 
-                    0xE8: 'Φ', 0xE9: 'Θ', 0xEA: 'Ω', 0xEB: 'δ', 0xEC: '∞', 0xED: 'φ', 0xEE: 'ε', 0xEF: '∩',
-                    0xF0: '≡', 0xF1: '±', 0xF2: '≥', 0xF3: '≤', 0xF4: '⌠', 0xF5: '⌡', 0xF6: '÷', 0xF7: '≈', 
-                    0xF8: '°', 0xF9: '∙', 0xFA: '·', 0xFB: '√', 0xFC: 'ⁿ', 0xFD: '²', 0xFE: '■', 0xFF: String.fromCharCode(160)
-                },
-            
-                "hebrew": {
-                    0x80: 'א', 0x81: 'ב', 0x82: 'ג', 0x83: 'ד', 0x84: 'ה', 0x85: 'ו', 0x86: 'ז', 0x87: 'ח',
-                    0x88: 'ט', 0x89: 'י', 0x8A: 'ך', 0x8B: 'כ', 0x8C: 'ל', 0x8D: 'ם', 0x8E: 'מ', 0x8F: 'ן',
-                    0x90: 'נ', 0x91: 'ס', 0x92: 'ע', 0x93: 'ף', 0x94: 'פ', 0x95: 'ץ', 0x96: 'צ', 0x97: 'ק',
-                    0x98: 'ר', 0x99: 'ש', 0x9A: 'ת',
-                }
-            };
-            
-            this.left_right_mark = String.fromCharCode(8206);
-        }
-        
-        translate_char(ascii_value) {
-            if (ascii_value in this.translation_map.art) {
-                return this.translation_map.art[ascii_value];
-            }
-            
-            if (ascii_value in this.translation_map.hebrew) {
-                return this.translation_map.hebrew[ascii_value] + this.left_right_mark;
-            }
-            
-            return String.fromCharCode(ascii_value);
-        }
-        
-        translate(buffer) {
-            let content = "";
-            for (let x of buffer) {
-                content += this.translate_char(x);
-            }
-            
-            return content;
-        }
-    };
-    
-    class AnsiParser {
-        constructor() {
-            this.ANSI_ESCAPE_PATTERN = /[\u001b\u009b←][[()#;?]*((?:[0-9]{1,4}(?:;[0-9]{0,4})*)?)([0-9A-ORZcf-nqry=><])/g;
-            this.COLORS = {
-                0: 'black',
-                1: 'red',
-                2: 'green',
-                3: 'yellow',
-                4: 'blue',
-                5: 'purple',
-                6: 'cyan',
-                7: 'white'
-            };
-            
-            this.NUM_COLORS = Object.keys(this.COLORS).length;
-            this.FOREGROUND_BASE = 30;
-            this.BACKGROUND_BASE = 40;
-            this.RESET           = 0;
-            this.BOLD            = 1;
-            this.ITALIC          = 3;
-        }
-    
-    
-        parse (str, action) {
-            let span_counter = 0;
-            let that = this;
-            
-            const ansi_to_span = function (match, args, func) { 
-                
-                if (!func) {
-                    return "";
-                }
-                
-                if (!args) {
-                    return "";
-                }
-                
-                let res = "";
-                
-                if (func == "m") {
-                    args = args.split(";");
-                    
-                    for (let arg of args)
-                    {
-                        const parsed = parseInt(arg);
-                        if (isNaN(parsed)) { 
-                            return ""; 
-                        }
-                        
-                        if ( (parsed == that.RESET) && (span_counter > 0) ) {
-                            for (let i = 0; i < span_counter; i++)
-                            {
-                                res += "</span>";
-                            }
-                            span_counter = 0;
-                        }
-                        else if ((parsed >= that.BACKGROUND_BASE) && (parsed < that.BACKGROUND_BASE + that.NUM_COLORS))
-                        {
-                            res += "<span style='background-color: " + that.COLORS[parsed - that.BACKGROUND_BASE] + "'>";
-                            span_counter += 1;
-                        }
-                        else if ((parsed >= that.FOREGROUND_BASE) && (parsed < that.FOREGROUND_BASE + that.NUM_COLORS))
-                        {
-                            res += "<span style='color: " + that.COLORS[parsed - that.FOREGROUND_BASE] + "'>";
-                            span_counter += 1;
-                        }
-                        else if (parsed == that.BOLD) {
-                            res += "<span style='font-weight: bold'>";
-                            span_counter += 1;
-                        }
-                        else if (parsed == that.ITALIC) {
-                            res += "<span style='font-style: italic'>";
-                            span_counter += 1;
-                        }
-                    }
-                    
-                }
-                else if (func == "C") {
-                    if (args == "")
-                    {
-                        args = "1";
-                    }
-                    const parsed = parseInt(args, 10);
-                    if (isNaN(parsed)) { 
-                        return ""; 
-                    }
-                    res += "<span class='theme_needed'>" + " ".repeat(parsed) + "</span>"
-                }
-                else {
-                    console.log(`Unsupported ANSI Escape Code function: ${func}`);
-                }
-
-                return res;
-            };
-            
-            let replacement;
-            
-            switch (action)
-            {
-                case "strip":
-                default:
-                    replacement = "";
-                    break;
-                case "translate":
-                    replacement = ansi_to_span;
-                    break;
-            }
-
-            str = str.replace(that.ANSI_ESCAPE_PATTERN, replacement);
-            
-            while (span_counter > 0) {
-                str += "</span>";
-                span_counter--;
-            }
-
-            return str;
-        }
-    }
-
     
     class hTXT {
         constructor() {
@@ -358,11 +177,11 @@
             
             this.setupFileReader();
             this.setupDropZone();
-            this.setupTheme();
-            this.setupAnsi();
+            //this.setupTheme();
             this.setupSave();
             
             this.content = null;
+            this.content_promise = null;
             this.fileName = null;
         }
        
@@ -372,11 +191,11 @@
             this.fileInput = document.getElementById('file');
             this.fReader = new FileReader();
             
-            this.fReader.onload = function(e) {
-                
+            this.fReader.onload = async function(e) {
+                that.container.innerHTML = '';
                 const buffer = new Uint8Array(e.target.result);
-
-                that.content = that.codePageTranslator.translate(buffer);
+                
+                that.content_promise = that.codePageTranslator.translate(buffer);
                 that.parseContent();
             };
             
@@ -444,6 +263,7 @@
             dropZone.addEventListener('drop', handleDrop);
         };
         
+        /*
         setupTheme() {
             const that = this;
             const themeSelect = document.getElementById("theme");
@@ -472,48 +292,47 @@
             themeSelect.onchange = that.onThemeSelect;
             that.onThemeSelect();
         };
-        
-        setupAnsi() {
-            const that = this;
-            this.ansiSelect = document.getElementById("ansi");
-            
-            this.ansiSelect.onchange = function(e) {
-                that.parseContent();
-            };
-        };
+        */
         
         setupSave() {
             const that = this;
             this.saveImgButton = document.getElementById("save-img");
             this.saveImgButton.disabled = true;
             this.saveImgButton.onclick = function(e) {
-                html2canvas(that.container, {}).then(function(canvas) {
-                    canvas.toBlob(function(blob) {
-                        saveAs(blob, that.fileName + ".png"); 
-                    });
+                const canvas = document.getElementById("output_canvas");
+                canvas.toBlob(function(blob) {
+                    saveAs(blob, that.fileName + ".png"); 
                 });
             };
             
+            /*
             this.saveTxtButton = document.getElementById("save-txt");
             this.saveTxtButton.disabled = true;
             this.saveTxtButton.onclick = function(e) {
                 const blob = new Blob([document.getElementById("text_file").textContent], {type: "text/plain;charset=utf-8"});
                 saveAs(blob, that.fileName + ".txt");
             };
+            */
         }
         
-        parseContent() {
-            if (this.content) {
-                const newPre = document.createElement("div");
-                newPre.setAttribute("id", "text_file");
-                //newPre.appendChild(document.createTextNode(strip_ansi(content)));
-                newPre.innerHTML = this.ansiParser.parse(this.content, this.ansiSelect.value);
+        async parseContent() {
+            if (this.content_promise) {
+                this.content = await this.content_promise;
+            }
+            if (this.content) {     
+                const terminal = new Terminal(80);
+                await this.ansiParser.parse(this.content, terminal);
+                const canvas = await terminal.toCanvas();
+                canvas.setAttribute("id", "output_canvas");
+
                 this.container.innerHTML = '';
-                this.container.appendChild(newPre);
+                this.container.appendChild(canvas);
+
                 this.container.style.display = "block";
-                this.onThemeSelect();
+                //this.onThemeSelect();
                 this.saveImgButton.disabled = false;
-                this.saveTxtButton.disabled = false;
+                //this.saveTxtButton.disabled = false;
+                
             }
         };
     }
@@ -521,6 +340,8 @@
     (function() {
         let htxt = new hTXT();
     })();
+    
     </script>
+
 </body>
 </html>
