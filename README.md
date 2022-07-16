@@ -21,19 +21,50 @@ The Python script under `scripts` can be used to convert the text files to image
 
 ```console
 $ python3 hTXT.py -h
-usage: hTXT.py [-h] -i INPUT [-o OUTPUT] [-w CONSOLE_WIDTH] [-s]
+usage: hTXT.py [-h] [-w CONSOLE_WIDTH] [-s] (-i INPUT | -id INPUT_DIR) [-o OUTPUT | -od OUTPUT_DIR]
 
 Decode old Hebrew text files encoded with Code Page 862
 
 options:
   -h, --help            show this help message and exit
-  -i INPUT, --input INPUT
-                        Input file
-  -o OUTPUT, --output OUTPUT
-                        Output file
   -w CONSOLE_WIDTH, --console-width CONSOLE_WIDTH
                         Console width
   -s, --skip_ansi       Skip ANSI Color codes
+  -i INPUT, --input INPUT
+                        Input file
+  -id INPUT_DIR, --input-dir INPUT_DIR
+                        Input directory
+  -o OUTPUT, --output OUTPUT
+                        Output file
+  -od OUTPUT_DIR, --output-dir OUTPUT_DIR
+                        Output directory
+```
+
+For example:
+
+```console
+# Will save the output file to the same directory as the input file
+$ python3 ./hTXT.py -i /home/user/input/file1.ans
+Parsing '/home/user/input/file1.ans'
+Saved to '/home/user/input/file1.png'
+
+# Will save the output file to the provided output path
+$ python3 ./hTXT.py -i /home/user/input/file1.ans -o /home/user/output/file1_output.png
+Parsing '/home/user/input/file1.ans'
+Saved to '/home/user/output/file1_output.png'
+
+# Will save the output file to the provided output directory
+$ python3 ./hTXT.py -i /home/user/input/file1.ans -od /home/user/output/
+Parsing '/home/user/input/file1.ans'
+Saved to '/home/user/output/file1.png'
+
+# For each file under the input directory, will save a matching output file under the output directory
+$ python3 ./hTXT.py -id /home/user/input/ -od /home/user/output/
+Parsing '/home/user/input/file1.ans'
+Saved to '/home/user/output/file1.png'
+Parsing '/home/user/input/child/file2.asc'
+Saved to '/home/user/output/child/file2.png'
+
 ```
 
 The script depends on the `Pillow` (`PIL` fork) library:

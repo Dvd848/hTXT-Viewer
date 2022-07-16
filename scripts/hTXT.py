@@ -28,6 +28,7 @@ SOFTWARE.
 
 import argparse
 import re
+import os
 
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
@@ -496,6 +497,9 @@ def file_to_image(buffer: bytes, **kwargs) -> Image.Image:
     return terminal.to_img()
 
 def main(input_path: str, output_path: str, **kwargs) -> None:
+    if not Path(input_path).is_file():
+        raise FileNotFoundError(f"Can't find file '{input_path}'")
+        
     print(f"Parsing '{input_path}'")
     with open(input_path, "rb") as f:
         output = file_to_image(f.read(), **kwargs)
@@ -503,27 +507,72 @@ def main(input_path: str, output_path: str, **kwargs) -> None:
         print(f"Saved to '{output_path}'")
 
 if __name__ == "__main__":
+    BATCH_EXTENSIONS = set(x.lower() for x in [".txt", ".ans", ".sos", ".asc", ".ansi", ".nfo"])
+
     parser = argparse.ArgumentParser(description="Decode old Hebrew text files encoded with Code Page 862")
-    parser.add_argument('-i', '--input', type=str, required=True, help="Input file")
-    parser.add_argument('-o', '--output', type=str, help="Output file")
     parser.add_argument('-w', '--console-width', type=int, default=Terminal.CONSOLE_WIDTH_DEFAULT, help="Console width")
     parser.add_argument('-s', '--skip_ansi', action='store_true', default=False, help="Skip ANSI Color codes")
 
+    input_group = parser.add_mutually_exclusive_group(required = True)
+    input_group.add_argument('-i', '--input', type=str, help="Input file")
+    input_group.add_argument('-id', '--input-dir', type=str, help="Input directory")
+
+    output_group = parser.add_mutually_exclusive_group()
+    output_group.add_argument('-o', '--output', type=str, help="Output file")
+    output_group.add_argument('-od', '--output-dir', type=str, help="Output directory")
+
     args = parser.parse_args()
+
+    if args.input_dir is not None and args.output is not None:
+        parser.error('If the input is a directory (-id), the output must be a directory as well (-od)')
+
     kwargs = {}
 
     kwargs["console_width"] = args.console_width
     kwargs["skip_ansi"] = args.skip_ansi
 
-    output_file = None
-    if args.output is not None:
-        output_file = args.output
+    if args.input_dir is not None:
+        input_dir = Path(args.input_dir)
+        output_base_dir = Path(args.output_dir) if args.output_dir is not None else input_dir
+        error_count = 0
+        file_count = 0
+        for root, dirs, files in os.walk(args.input_dir):
+            for file in files:
+                lower_file = file.lower()
+                rel_dir = os.path.relpath(root, args.input_dir)
+                file_processed = False
+                for extension in BATCH_EXTENSIONS:
+                    if lower_file.endswith(extension):
+                        file_processed = True
+                        file_count += 1
+                        input_path = input_dir / rel_dir / file
+                        output_path = output_base_dir / rel_dir / (input_path.stem + ".png")
+                        try:
+                            output_path.parent.mkdir(parents = True, exist_ok = True)
+                            main(str(input_path), str(output_path), **kwargs)
+                        except Exception as e:
+                            error_count += 1
+                            print(f"Error: {str(e)}")
+                if not file_processed:
+                    print(f"Skipping '{lower_file}' due to extension")
+        
+        print(f"\n{file_count} files processed." )
+        if error_count > 0:
+            print(f"{error_count} errors encountered during processing, please check log.")
     else:
-        input_file = Path(args.input).absolute()
-        output_file = str(input_file.parent / input_file.stem) + ".png"
+        output_file = None
+        if args.output is not None:
+            output_file = args.output
+        else:
+            input_file = Path(args.input).absolute()
+            output_filename = input_file.stem + ".png"
+            if args.output_dir is not None:
+                output_file = str(Path(args.output_dir) / output_filename)
+            else:
+                output_file = str(input_file.parent / output_filename)
 
-    try:
-        main(args.input, output_file, **kwargs)
-    except Exception as e:
-        raise SystemExit(f"Error: {str(e)}")
-        #raise
+        try:
+            main(args.input, output_file, **kwargs)
+        except Exception as e:
+            raise SystemExit(f"Error: {str(e)}")
+            #raise
