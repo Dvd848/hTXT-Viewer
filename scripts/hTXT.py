@@ -78,7 +78,6 @@ translation = {
     0x98: 'ר', 0x99: 'ש', 0x9A: 'ת',
 }
 
-
 class AnsiFunctions(Enum):
     # https://en.wikipedia.org/wiki/ANSI_escape_code
     # https://notes.burke.libbey.me/ansi-escape-codes/
@@ -241,15 +240,7 @@ class AnsiEscape():
         else:
             return cls.COLORS[color]
 
-
 class Terminal():
-    """Simulates a terminal."""
-
-    FONT_PATH       = Path(__file__).parent.resolve() / '..' / 'resources' / 'clacon2.ttf'
-
-    FONT_SIZE               = 16
-    FONT_WIDTH              = 8
-    FONT_HEIGHT             = 13
     CONSOLE_WIDTH_DEFAULT   = 80
     CONSOLE_WIDTH_MIN       = 40
     CONSOLE_WIDTH_MAX       = 1000
@@ -262,52 +253,8 @@ class Terminal():
         self.saved_row = None
         self.saved_col = None
 
-        try:
-            self.font = ImageFont.truetype(str(self.FONT_PATH), self.FONT_SIZE)
-        except Exception:
-            raise FileNotFoundError(f"Can't find font: {self.FONT_PATH}")
-
         self.clear_screen()
         self.set_default_colors()
-    
-    def write(self, character: str) -> None:
-        """Write a single character to the terminal.
-        
-        Params:
-            character:
-                The character to write to the terminal.
-        """
-
-        # If the tile doesn't exist yet, create it
-        for _ in range(len(self.tiles), self.row + 1):
-            img = Image.new('RGB', (self.width * self.FONT_WIDTH, self.FONT_HEIGHT), color = AnsiEscape.color(AnsiColors.BLACK, False))
-            self.tiles.append(img)
-        
-
-        img = self.tiles[self.row]
-        d = ImageDraw.Draw(img)
-
-        if (character == "\n"):
-            if not self.skipNextNewline:
-                self.row += 1
-                self.col = 0
-        elif character in ["\r", "♣"]:
-            # skip
-            pass
-        else:
-            # Background
-            d.rectangle(((self.FONT_WIDTH * self.col, 0), ((self.FONT_WIDTH * self.col) + self.FONT_WIDTH, self.FONT_HEIGHT)), 
-                        fill=AnsiEscape.color(self.background, False))
-            # Foreground
-            d.text((self.FONT_WIDTH * self.col, 0), character, fill = AnsiEscape.color(self.foreground, self.bold), font = self.font)
-
-            self.col += 1
-            self.skipNextNewline = False
-            
-            if (self.col == self.width):
-                self.row += 1
-                self.col = 0
-                self.skipNextNewline = True
 
     def move_right(self, n: int) -> None:
         """Move the cursor right n times."""
@@ -332,29 +279,25 @@ class Terminal():
         # Once we are done processing the entire file, we "paste" the tiles one after the other
         # to receive the complete image.
         self.tiles = []
-    
 
     def set_fgcolor(self, color: AnsiColors) -> None:
         """Set foreground color."""
-        self.foreground = color
+        raise NotImplementedError()
     
 
     def set_bgcolor(self, color: AnsiColors) -> None:
         """Set background color."""
-        self.background = color
+        raise NotImplementedError()
     
 
     def set_default_colors(self) -> None:
         """Reset terminal colors."""
-        self.set_fgcolor(AnsiColors.WHITE)
-        self.set_bgcolor(AnsiColors.BLACK)
-        self.bold = False
+        raise NotImplementedError()
     
 
     def set_bold(self, bold: bool) -> None:
         """Set boldness."""
-        self.bold = bold
-    
+        raise NotImplementedError()
 
     def save_current_position(self) -> None:
         """Save current cursor position."""
@@ -377,9 +320,91 @@ class Terminal():
         """Set current cursor position."""
         self.row = row
         self.col = col
+
+    def write(self, character: str) -> None:
+        """Write a single character to the terminal.
+        
+        Params:
+            character:
+                The character to write to the terminal.
+        """
+
+        # If the tile doesn't exist yet, create it
+        for _ in range(len(self.tiles), self.row + 1):
+            self._append_new_tile()
+        
+        tile = self.tiles[self.row]
+
+        if (character == "\n"):
+            if not self.skipNextNewline:
+                self.row += 1
+                self.col = 0
+        elif character in ["\r", "♣"]:
+            # skip
+            pass
+        else:
+            self._write(tile, character)
+
+            self.col += 1
+            self.skipNextNewline = False
+            
+            if (self.col == self.width):
+                self.row += 1
+                self.col = 0
+                self.skipNextNewline = True
+
+
+class ImageTerminal(Terminal):
+    """Simulates a terminal."""
+
+    FONT_PATH       = Path(__file__).parent.resolve() / '..' / 'resources' / 'clacon2.ttf'
+
+    FONT_SIZE               = 16
+    FONT_WIDTH              = 8
+    FONT_HEIGHT             = 13
+
+    def __init__(self, width: int) -> None:
+        super().__init__(width)
+
+        try:
+            self.font = ImageFont.truetype(str(self.FONT_PATH), self.FONT_SIZE)
+        except Exception:
+            raise FileNotFoundError(f"Can't find font: {self.FONT_PATH}")
+
+    def _append_new_tile(self) -> None:
+        img = Image.new('RGB', (self.width * self.FONT_WIDTH, self.FONT_HEIGHT), color = AnsiEscape.color(AnsiColors.BLACK, False))
+        self.tiles.append(img)
+
+    def _write(self, tile: Image.Image, character: str) -> None:
+        d = ImageDraw.Draw(tile)
+        # Background
+        d.rectangle(((self.FONT_WIDTH * self.col, 0), ((self.FONT_WIDTH * self.col) + self.FONT_WIDTH, self.FONT_HEIGHT)), 
+                    fill=AnsiEscape.color(self.background, False))
+        # Foreground
+        d.text((self.FONT_WIDTH * self.col, 0), character, fill = AnsiEscape.color(self.foreground, self.bold), font = self.font)
+
+    def set_fgcolor(self, color: AnsiColors) -> None:
+        """Set foreground color."""
+        self.foreground = color
     
 
-    def to_img(self) -> Image.Image:
+    def set_bgcolor(self, color: AnsiColors) -> None:
+        """Set background color."""
+        self.background = color
+    
+
+    def set_default_colors(self) -> None:
+        """Reset terminal colors."""
+        self.set_fgcolor(AnsiColors.WHITE)
+        self.set_bgcolor(AnsiColors.BLACK)
+        self.bold = False
+    
+
+    def set_bold(self, bold: bool) -> None:
+        """Set boldness."""
+        self.bold = bold
+
+    def export(self) -> Image.Image:
         """Export the terminal to an image."""
         # Create the full image by pasting the tiles one after the other
         height = len(self.tiles) * self.FONT_HEIGHT
@@ -389,6 +414,52 @@ class Terminal():
             output.paste(img, (0, self.FONT_HEIGHT * i))
 
         return output
+
+class TextTerminal(Terminal):
+    """Simulates a terminal."""
+
+    def __init__(self, width: int) -> None:
+        super().__init__(width)
+
+    def _append_new_tile(self) -> None:
+        self.tiles.append([""] * self.width)
+
+    def _write(self, tile: List[str], character: str) -> None:
+        tile[self.col] = character
+
+    def set_fgcolor(self, color: AnsiColors) -> None:
+        """Set foreground color."""
+        pass
+    
+    def set_bgcolor(self, color: AnsiColors) -> None:
+        """Set background color."""
+        pass
+    
+    def set_default_colors(self) -> None:
+        """Reset terminal colors."""
+        pass
+    
+
+    def set_bold(self, bold: bool) -> None:
+        """Set boldness."""
+        pass
+
+    def export(self):
+        """Export the terminal to an image."""
+
+        class TextWrapper():
+            def __init__(self, text) -> None:
+                self.text = text
+
+            def save(self, path) -> None:
+                with open(path, "w", encoding = "utf8") as o:
+                    o.write(self.text)
+        
+        content = ""
+        for tile in self.tiles:
+            content += "".join(tile) + "\n"
+        
+        return TextWrapper(content)
 
 
 def decode_file(buffer: bytes) -> List[Union[str, AnsiEscape]]:
@@ -439,8 +510,8 @@ def decode_file(buffer: bytes) -> List[Union[str, AnsiEscape]]:
 
     return res
 
-def file_to_image(buffer: bytes, **kwargs) -> Image.Image:
-    """Export a given text file as a decoded image.
+def export_file(buffer: bytes, **kwargs):
+    """Export a given text file as a decoded image/text.
 
         Params:
             buffer:
@@ -451,6 +522,8 @@ def file_to_image(buffer: bytes, **kwargs) -> Image.Image:
                     Console Width (in characters). Default is CONSOLE_WIDTH_DEFAULT.
                 skip_ansi:
                     Whether or not to parse ANSI escape codes. Default is False.
+                format:
+                    Export format: Text or Image. Default is image.
     """
 
     console_width = kwargs.get("console_width", Terminal.CONSOLE_WIDTH_DEFAULT)
@@ -459,7 +532,9 @@ def file_to_image(buffer: bytes, **kwargs) -> Image.Image:
 
     skip_ansi = kwargs.get("skip_ansi", False)
 
-    terminal = Terminal(console_width)
+    format_class = {"image": ImageTerminal, "text": TextTerminal}[kwargs.get("format", "image")]
+
+    terminal = format_class(console_width)
     content = decode_file(buffer)
 
     for c in content:
@@ -494,7 +569,7 @@ def file_to_image(buffer: bytes, **kwargs) -> Image.Image:
                     elif command.type == AnsiSgrCommands.SET_BOLD:
                         terminal.set_bold(True)
     
-    return terminal.to_img()
+    return terminal.export()
 
 def main(input_path: str, output_path: str, **kwargs) -> None:
     if not Path(input_path).is_file():
@@ -502,7 +577,7 @@ def main(input_path: str, output_path: str, **kwargs) -> None:
         
     print(f"Parsing '{input_path}'")
     with open(input_path, "rb") as f:
-        output = file_to_image(f.read(), **kwargs)
+        output = export_file(f.read(), **kwargs)
         output.save(output_path)
         print(f"Saved to '{output_path}'")
 
@@ -512,6 +587,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Decode old Hebrew text files encoded with Code Page 862")
     parser.add_argument('-w', '--console-width', type=int, default=Terminal.CONSOLE_WIDTH_DEFAULT, help="Console width")
     parser.add_argument('-s', '--skip_ansi', action='store_true', default=False, help="Skip ANSI Color codes")
+    parser.add_argument('-f', '--format', choices = ["image", "text"], default="image", help="Output format")
 
     input_group = parser.add_mutually_exclusive_group(required = True)
     input_group.add_argument('-i', '--input', type=str, help="Input file")
@@ -530,6 +606,9 @@ if __name__ == "__main__":
 
     kwargs["console_width"] = args.console_width
     kwargs["skip_ansi"] = args.skip_ansi
+    kwargs["format"] = args.format
+
+    default_output_extension = {"image": "png", "text": "txt"}[args.format]
 
     if args.input_dir is not None:
         input_dir = Path(args.input_dir)
@@ -546,7 +625,7 @@ if __name__ == "__main__":
                         file_processed = True
                         file_count += 1
                         input_path = input_dir / rel_dir / file
-                        output_path = output_base_dir / rel_dir / (input_path.stem + ".png")
+                        output_path = output_base_dir / rel_dir / (input_path.stem + "." + default_output_extension)
                         try:
                             output_path.parent.mkdir(parents = True, exist_ok = True)
                             main(str(input_path), str(output_path), **kwargs)
@@ -565,7 +644,7 @@ if __name__ == "__main__":
             output_file = args.output
         else:
             input_file = Path(args.input).absolute()
-            output_filename = input_file.stem + ".png"
+            output_filename = input_file.stem + "." + default_output_extension
             if args.output_dir is not None:
                 output_file = str(Path(args.output_dir) / output_filename)
             else:
