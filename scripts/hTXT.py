@@ -468,7 +468,9 @@ class TextTerminal(Terminal):
         RIGHT_LEFT_MARK = u"\u200F"
 
         for tile in self.tiles:
-            content += LEFT_RIGHT_MARK + self.get_display("".join(tile)) + LEFT_RIGHT_MARK + "\n"
+            line = "".join(tile)
+            line = re.sub(r'O([א-ת]+)', r'ם\1', line)
+            content += LEFT_RIGHT_MARK + self.get_display(line) + LEFT_RIGHT_MARK + "\n"
 
         return TextWrapper(content)
 
@@ -593,7 +595,7 @@ def main(input_path: str, output_path: str, **kwargs) -> None:
         print(f"Saved to '{output_path}'")
 
 if __name__ == "__main__":
-    BATCH_EXTENSIONS = set(x.lower() for x in [".txt", ".ans", ".sos", ".asc", ".ansi", ".nfo"])
+    BATCH_EXTENSIONS = set(x.lower() for x in [".txt", ".ans", ".sos", ".asc", ".ansi", ".nfo", ".msg"])
 
     parser = argparse.ArgumentParser(description="Decode old Hebrew text files encoded with Code Page 862")
     parser.add_argument('-w', '--console-width', type=int, default=Terminal.CONSOLE_WIDTH_DEFAULT, help="Console width")
