@@ -421,8 +421,15 @@ class TextTerminal(Terminal):
     def __init__(self, width: int) -> None:
         super().__init__(width)
 
+        try:
+            from bidi.algorithm import get_display
+            self.get_display = get_display
+        except ImportError as e:
+            # https://pypi.org/project/python-bidi/
+            raise ImportError("Please install python-bidi: pip install python-bidi") from e
+
     def _append_new_tile(self) -> None:
-        self.tiles.append([""] * self.width)
+        self.tiles.append([" "] * self.width)
 
     def _write(self, tile: List[str], character: str) -> None:
         tile[self.col] = character
@@ -445,7 +452,7 @@ class TextTerminal(Terminal):
         pass
 
     def export(self):
-        """Export the terminal to an image."""
+        """Export the terminal to a text file."""
 
         class TextWrapper():
             def __init__(self, text) -> None:
@@ -456,9 +463,13 @@ class TextTerminal(Terminal):
                     o.write(self.text)
         
         content = ""
+
+        LEFT_RIGHT_MARK = u"\u200E"
+        RIGHT_LEFT_MARK = u"\u200F"
+
         for tile in self.tiles:
-            content += "".join(tile) + "\n"
-        
+            content += LEFT_RIGHT_MARK + self.get_display("".join(tile)) + LEFT_RIGHT_MARK + "\n"
+
         return TextWrapper(content)
 
 
