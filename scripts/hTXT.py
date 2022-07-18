@@ -27,6 +27,7 @@ SOFTWARE.
 """
 
 import argparse
+import logging
 import re
 import os
 
@@ -171,7 +172,7 @@ class AnsiEscape():
                 try:
                     self._arguments.append(int(argument))
                 except ValueError:
-                    print(f"Unable to parse argument \"{argument.decode('ascii')}\" of \"{raw_string.decode('ascii')}\"")
+                    logging.warning(f'Unable to parse argument \'{argument.decode("ascii")}\' of {raw_string}')
         self._function = chr(raw_string[-1])
 
     def __repr__(self) -> str:
@@ -183,7 +184,7 @@ class AnsiEscape():
         try:
             return AnsiFunctions(self._function)
         except ValueError:
-            print(f"Unsupported function: {self._function}")
+            logging.warning(f"Unsupported function: {self._function}")
             return AnsiFunctions.UNSUPPORTED
 
     @property
@@ -316,7 +317,7 @@ class Terminal():
             self.saved_row = None
             self.saved_col = None
         else:
-            print(f"Attempt to restore position when position not saved")
+            logging.warning(f"Attempt to restore position when position not saved")
 
     def set_current_position(self, row: int, col: int) -> None:
         """Set current cursor position."""
@@ -600,16 +601,24 @@ def main(input_path: str, output_path: str, **kwargs) -> None:
     if not Path(input_path).is_file():
         raise FileNotFoundError(f"Can't find file '{input_path}'")
         
-    print(f"Parsing '{input_path}'")
+    logging.info(f"Parsing '{input_path}'")
     with open(input_path, "rb") as f:
         output = export_file(f.read(), **kwargs)
         if os.path.exists(output_path):
-            print(f"Warning: Output file already exists, overwriting it ('{output_path}')")
+            logging.warning(f"Warning: Output file already exists, overwriting it ('{output_path}')")
         output.save(output_path)
-        print(f"Saved to '{output_path}'")
+        logging.info(f"Saved to '{output_path}'")
 
 if __name__ == "__main__":
     BATCH_EXTENSIONS = set(x.lower() for x in [".txt", ".ans", ".sos", ".asc", ".ansi", ".nfo", ".msg"])
+
+    logging.basicConfig(level = logging.INFO, 
+                        format = '[%(levelname)-8s] %(message)s',
+                        handlers=[
+                            logging.FileHandler("debug.log", 'w'),
+                            logging.StreamHandler()
+                        ]
+    )
 
     parser = argparse.ArgumentParser(description="Decode old Hebrew text files encoded with Code Page 862")
     parser.add_argument('-w', '--console-width', type=int, default=Terminal.CONSOLE_WIDTH_DEFAULT, help="Console width")
@@ -618,7 +627,7 @@ if __name__ == "__main__":
 
     input_group = parser.add_mutually_exclusive_group(required = True)
     input_group.add_argument('-i', '--input', type=str, help="Input file")
-    input_group.add_argument('-id', '--input-dir', type=str, help="Input directory")
+    input_group.add_argument('-id', '--input-dir', type=str, help=f"Input directory (Only the following extensions are parsed: {BATCH_EXTENSIONS})")
 
     output_group = parser.add_mutually_exclusive_group()
     output_group.add_argument('-o', '--output', type=str, help="Output file")
@@ -659,16 +668,17 @@ if __name__ == "__main__":
                             main(str(input_path), str(output_path), **kwargs)
                         except Exception as e:
                             error_count += 1
-                            print(f"Error: {str(e)}")
+                            logging.error(f"Error: {str(e)}")
                 if not file_processed:
-                    print(f"Skipping '{lower_file}' due to extension")
+                    logging.warning(f"Skipping '{lower_file}' due to extension")
                     skip_count += 1
         
-        print(f"\n{file_count} files processed" )
+        print(f"\n{file_count} files processed")
         if skip_count > 0:
-            print(f"{skip_count} skipped due to their extension, please check log")
+            print(f"{skip_count} skipped due to their extension, please check log.")
         if error_count > 0:
-            print(f"{error_count} errors encountered during processing, please check log")
+            print(f"{error_count} errors encountered during processing, please check log.")
+
     else:
         output_file = None
         if args.output is not None:
