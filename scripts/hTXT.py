@@ -241,6 +241,8 @@ class AnsiEscape():
             return cls.COLORS[color]
 
 class Terminal():
+    """Abstract class to simulate a terminal."""
+
     CONSOLE_WIDTH_DEFAULT   = 80
     CONSOLE_WIDTH_MIN       = 40
     CONSOLE_WIDTH_MAX       = 1000
@@ -355,7 +357,7 @@ class Terminal():
 
 
 class ImageTerminal(Terminal):
-    """Simulates a terminal."""
+    """Simulates a terminal whose output can be exported to an image."""
 
     FONT_PATH       = Path(__file__).parent.resolve() / '..' / 'resources' / 'clacon2.ttf'
 
@@ -372,10 +374,12 @@ class ImageTerminal(Terminal):
             raise FileNotFoundError(f"Can't find font: {self.FONT_PATH}")
 
     def _append_new_tile(self) -> None:
+        """Create a new row in the terminal."""
         img = Image.new('RGB', (self.width * self.FONT_WIDTH, self.FONT_HEIGHT), color = AnsiEscape.color(AnsiColors.BLACK, False))
         self.tiles.append(img)
 
     def _write(self, tile: Image.Image, character: str) -> None:
+        """Write a character to the terminal at the current cursor location."""
         d = ImageDraw.Draw(tile)
         # Background
         d.rectangle(((self.FONT_WIDTH * self.col, 0), ((self.FONT_WIDTH * self.col) + self.FONT_WIDTH, self.FONT_HEIGHT)), 
@@ -416,7 +420,7 @@ class ImageTerminal(Terminal):
         return output
 
 class TextTerminal(Terminal):
-    """Simulates a terminal."""
+    """Simulates a terminal whose output can be exported to a text file."""
 
     def __init__(self, width: int) -> None:
         super().__init__(width)
@@ -429,9 +433,11 @@ class TextTerminal(Terminal):
             raise ImportError("Please install python-bidi: pip install python-bidi") from e
 
     def _append_new_tile(self) -> None:
+        """Create a new row in the terminal."""
         self.tiles.append([" "] * self.width)
 
     def _write(self, tile: List[str], character: str) -> None:
+        """Write a character to the terminal at the current cursor location."""
         tile[self.col] = character
 
     def set_fgcolor(self, color: AnsiColors) -> None:
@@ -455,6 +461,7 @@ class TextTerminal(Terminal):
         """Export the terminal to a text file."""
 
         class TextWrapper():
+            """Helper class to support the 'save' interface."""
             def __init__(self, text) -> None:
                 self.text = text
 
