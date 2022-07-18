@@ -35,7 +35,7 @@ options:
   -i INPUT, --input INPUT
                         Input file
   -id INPUT_DIR, --input-dir INPUT_DIR
-                        Input directory
+                        Input directory (Only the following extensions are parsed: {'.sos', '.ans', '.msg', '.txt', '.asc', '.nfo', '.ansi'})
   -o OUTPUT, --output OUTPUT
                         Output file
   -od OUTPUT_DIR, --output-dir OUTPUT_DIR
@@ -54,35 +54,41 @@ Example usage:
 ```console
 $ # Will save the output file to the same directory as the input file
 $ python3 ./hTXT.py -i /home/user/input/file1.ans
-Parsing '/home/user/input/file1.ans'
-Saved to '/home/user/input/file1.png'
+[INFO] Parsing '/home/user/input/file1.ans'
+[INFO] Saved to '/home/user/input/file1.png'
+1 file(s) processed
 
 $ # Will save the output file to the same directory as the input file
 $ python3 ./hTXT.py -i /home/user/input/file1.ans --format image
-Parsing '/home/user/input/file1.ans'
-Saved to '/home/user/input/file1.png'
+[INFO] Parsing '/home/user/input/file1.ans'
+[INFO] Saved to '/home/user/input/file1.png'
+1 file(s) processed
 
 $ # Will save the output file to the provided output path
 $ python3 ./hTXT.py -i /home/user/input/file1.ans -o /home/user/output/file1_output.png
-Parsing '/home/user/input/file1.ans'
-Saved to '/home/user/output/file1_output.png'
+[INFO] Parsing '/home/user/input/file1.ans'
+[INFO] Saved to '/home/user/output/file1_output.png'
+1 file(s) processed
 
 $ # Will save the output file to the provided output directory
 $ python3 ./hTXT.py -i /home/user/input/file1.ans -od /home/user/output/
-Parsing '/home/user/input/file1.ans'
-Saved to '/home/user/output/file1.png'
+[INFO] Parsing '/home/user/input/file1.ans'
+[INFO] Saved to '/home/user/output/file1.png'
+1 file(s) processed
 
 $ # For each file under the input directory, will save a matching output file under the output directory
 $ python3 ./hTXT.py -id /home/user/input/ -od /home/user/output/
-Parsing '/home/user/input/file1.ans'
-Saved to '/home/user/output/file1.png'
-Parsing '/home/user/input/child/file2.asc'
-Saved to '/home/user/output/child/file2.png'
+[INFO] Parsing '/home/user/input/file1.ans'
+[INFO] Saved to '/home/user/output/file1.png'
+[INFO] Parsing '/home/user/input/child/file2.asc'
+[INFO] Saved to '/home/user/output/child/file2.png'
+2 file(s) processed
 
 $ # Save as a text file
 $ python3 ./hTXT.py -i /home/user/input/file1.ans -o /home/user/output/out.txt --format text
-Parsing '/home/user/input/file1.ans'
-Saved to '/home/user/output/out.txt'
+[INFO] Parsing '/home/user/input/file1.ans'
+[INFO] Saved to '/home/user/output/out.txt'
+1 file(s) processed
 
 ```
 

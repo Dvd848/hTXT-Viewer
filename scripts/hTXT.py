@@ -673,11 +673,11 @@ if __name__ == "__main__":
                     logging.warning(f"Skipping '{lower_file}' due to extension")
                     skip_count += 1
         
-        print(f"\n{file_count} files processed")
+        print(f"\n{file_count} file(s) processed")
         if skip_count > 0:
-            print(f"{skip_count} skipped due to their extension, please check log.")
+            print(f"{skip_count} file(s) skipped due to their extension, please check log.")
         if error_count > 0:
-            print(f"{error_count} errors encountered during processing, please check log.")
+            print(f"{error_count} error(s) encountered during processing, please check log.")
 
     else:
         output_file = None
