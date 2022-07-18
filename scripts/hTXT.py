@@ -470,7 +470,12 @@ class TextTerminal(Terminal):
         for tile in self.tiles:
             line = "".join(tile)
             line = re.sub(r'O([א-ת]+)', r'ם\1', line)
-            content += LEFT_RIGHT_MARK + self.get_display(line) + LEFT_RIGHT_MARK + "\n"
+            #content += LEFT_RIGHT_MARK + self.get_display(line) + LEFT_RIGHT_MARK + "\n"
+            line = self.get_display(line)
+            if not re.match('[א-ת]+', line):
+                line = LEFT_RIGHT_MARK + line + LEFT_RIGHT_MARK
+            line += "\n"
+            content += line
 
         return TextWrapper(content)
 
@@ -591,6 +596,8 @@ def main(input_path: str, output_path: str, **kwargs) -> None:
     print(f"Parsing '{input_path}'")
     with open(input_path, "rb") as f:
         output = export_file(f.read(), **kwargs)
+        if os.path.exists(output_path):
+            print(f"Warning: Output file already exists, overwriting it ('{output_path}')")
         output.save(output_path)
         print(f"Saved to '{output_path}'")
 
@@ -628,6 +635,7 @@ if __name__ == "__main__":
         output_base_dir = Path(args.output_dir) if args.output_dir is not None else input_dir
         error_count = 0
         file_count = 0
+        skip_count = 0
         for root, dirs, files in os.walk(args.input_dir):
             for file in files:
                 lower_file = file.lower()
@@ -647,10 +655,13 @@ if __name__ == "__main__":
                             print(f"Error: {str(e)}")
                 if not file_processed:
                     print(f"Skipping '{lower_file}' due to extension")
+                    skip_count += 1
         
-        print(f"\n{file_count} files processed." )
+        print(f"\n{file_count} files processed" )
+        if skip_count > 0:
+            print(f"{skip_count} skipped due to their extension, please check log")
         if error_count > 0:
-            print(f"{error_count} errors encountered during processing, please check log.")
+            print(f"{error_count} errors encountered during processing, please check log")
     else:
         output_file = None
         if args.output is not None:
