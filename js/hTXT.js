@@ -185,7 +185,7 @@ class AnsiEscape {
     }
 }
 
-const ANSI_ESCAPE_PATTERN = /[\u001b\u009b←][[()#;?]*((?:[0-9]{1,4}(?:;[0-9]{0,4})*)?)([0-9A-ORZcf-nqrysu=><])/g;
+const ANSI_ESCAPE_PATTERN = /[\u001b\u009b←]\[[()#;?]*((?:[0-9]{1,4}(?:;[0-9]{0,4})*)?)([0-9A-ORZcf-nqrysu=><])/g;
 const LEFT_RIGHT_MARK = String.fromCharCode(8206);
 
 class CodePageTranslator {
