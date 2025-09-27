@@ -66,7 +66,7 @@
         }
 
             
-        h1 {
+        h1, h2 {
             text-align: center;
             font-family: "Classic Console Neue";
         }
@@ -144,6 +144,11 @@
             margin: 10px 0 0 0;
             font-family: "Classic Console Neue";
         }
+
+        h1 a {
+            text-decoration: none;
+            color: inherit;
+        }
     </style>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.0/FileSaver.min.js" integrity="sha512-csNcFYJniKjJxRWRV1R7fvnXrycHP6qDR21mgz1ZP55xY5d+aHLfo9/FcGDQLfn2IfngbAHd8LdfsagcCqgTcQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -151,7 +156,8 @@
 
 <body>
     <div id="main">
-        <h1>hTXT Viewer</h1>
+        <h1><a href="hTXT.html">hTXT Viewer</a></h1>
+        <h2>An Online NFO Viewer with Hebrew Font Support</h2>
         
         <div class="infoBox">
             <div>
@@ -195,13 +201,61 @@
             this.setupDropZone();
             //this.setupTheme();
             this.setupSave();
-            
+
             this.content = null;
             this.content_promise = null;
             this.fileName = null;
+
+            // Try to load from URL param if present
+            this.tryLoadFromUrl();
+
+            // Reload when hash changes
+            window.addEventListener('hashchange', () => {
+                this.tryLoadFromUrl();
+            });
         }
-       
-        
+
+        async serializeToUrl(buffer) {
+            // gzip + base64 (native)
+            const cs = new CompressionStream('gzip');
+            const compressed = await new Response(
+                new Blob([buffer]).stream().pipeThrough(cs)
+            ).arrayBuffer();
+            const b64 = btoa(String.fromCharCode(...new Uint8Array(compressed)));
+
+            window.location.hash = '#img=' + b64;
+        }
+
+        async tryLoadFromUrl() {
+            
+            const hash = window.location.hash;
+            let b64 = null;
+            if (hash && hash.startsWith('#img=')) {
+                b64 = hash.substring(5);
+            }
+            if (b64) {
+                try {
+                    this.loading.style.display = "block";
+                    this.container.innerHTML = '';
+                    this.saveImgButton.disabled = true;
+
+                    const compressed = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+                    const ds = new DecompressionStream('gzip');
+                    const decompressed = await new Response(
+                        new Blob([compressed]).stream().pipeThrough(ds)
+                    ).arrayBuffer();
+                    // Simulate file load
+                    this.fileName = "from_url";
+                    this.loading.style.display = "block";
+                    this.content_promise = this.codePageTranslator.translate(new Uint8Array(decompressed), this.updateProgress);
+                    this.parseContent();
+                    this.container.style.display = "block";
+                } catch (e) {
+                    alert("Failed to load image from URL: " + e);
+                }
+            }
+        }
+
         setupFileReader() {
             const that = this;
             this.fileInput = document.getElementById('file');
@@ -216,7 +270,9 @@
                 that.container.innerHTML = '';
                 that.saveImgButton.disabled = true;
                 const buffer = new Uint8Array(e.target.result);
-                
+
+                await that.serializeToUrl(buffer);
+
                 that.content_promise = that.codePageTranslator.translate(buffer, that.updateProgress);
                 that.parseContent();
             };
@@ -347,19 +403,28 @@
                 await this.ansiParser.parse(this.content, terminal, this.updateProgress);
                 console.log("Parsing done!");
 
-                const canvas = await terminal.toCanvas(this.updateProgress);
-                console.log("Canvas ready!");
-                canvas.setAttribute("id", "output_canvas");
-
-                this.loading.style.display = "none";
-                this.container.innerHTML = '';
-                this.container.appendChild(canvas);
-
-                this.container.style.display = "block";
-                //this.onThemeSelect();
-                this.saveImgButton.disabled = false;
-                //this.saveTxtButton.disabled = false;
+                try
+                {
+                    const canvas = await terminal.toCanvas(this.updateProgress);
                 
+                    console.log("Canvas ready!");
+                    canvas.setAttribute("id", "output_canvas");
+    
+                    this.loading.style.display = "none";
+                    this.container.innerHTML = '';
+                    this.container.appendChild(canvas);
+    
+                    this.container.style.display = "block";
+                    //this.onThemeSelect();
+                    this.saveImgButton.disabled = false;
+                    //this.saveTxtButton.disabled = false;
+
+                }
+                catch(e)
+                {
+                    console.log(e);
+                    this.loading.innerHTML = 'Failed to render image: ' + e;
+                }
             }
         };
     }
